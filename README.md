@@ -32,30 +32,28 @@ This is not a mere line-by-line translation. It is an **architectural migration*
 
 Each stage of development is documented as a "lesson." You can find detailed architectural breakdowns in the `/lessons` folder.
 
-* **Day 1:** Analyzing `VPointF` - Understanding Pimpl and memory sharing in C++.
+* **[Day 1](./lessons/01-deconstruction.md):** Analyzing `VPointF` - Understanding Pimpl and memory sharing in C++.
+* **[Day 2](./lessons/02-foundation.md):** Foundation & The Geometry Engine - Initializing Cargo and implementing `Point2D`.
 
 ---
 
 ## 🗺️ Roadmap
 
-* [ ] **Phase 1: Geometry Foundation (`vgeometry`)**
-* [ ] Points, Vectors, and Basic Math Utils.
-* [ ] Geometric Transformations (Rotate, Flip, Move).
-
+* [x] **Phase 1: Geometry Foundation (`vgeometry`)**
+    * [x] Initialize Cargo Project.
+    * [x] Basic Enums (GOType, DrawMode).
+    * [x] Point2D Struct & Rotation Logic.
+    * [ ] Geometric Transformations (Flip, Move).
 
 * [ ] **Phase 2: The Core Identity (`vcore`)**
-* [ ] Implementing the `VGObject` trait.
-* [ ] Object ID and Metadata management.
-
+    * [ ] Implementing the `VGObject` trait.
+    * [ ] Object ID and Metadata management (Identity & Naming).
 
 * [ ] **Phase 3: The Parametric Heart**
-* [ ] Porting the calculation engine and formula parsing.
-
+    * [ ] Porting the calculation engine and formula parsing.
 
 * [ ] **Phase 4: Data Interoperability**
-* [ ] XML parsing for `.val` and `.vit` files using `Serde`.
-
-
+    * [ ] XML parsing for `.val` and `.vit` files using `Serde`.
 
 ---
 
@@ -63,21 +61,14 @@ Each stage of development is documented as a "lesson." You can find detailed arc
 
 ```bash
 # Clone the repository
-git clone https://github.com/tharwaatt/valentina-oxidized
+git clone [https://github.com/tharwaatt/valentina-oxidized](https://github.com/tharwaatt/valentina-oxidized)
 
 # Build the project
 cd valentina-oxidized
 cargo build
 
+# Run the project
+cargo run
+
 # Run tests
 cargo test
-
-```
-
----
-
-## 🤝 Contribution & Peer Review
-
-This project is as much about **community learning** as it is about code. If you are a Rustacean, a C++ veteran, or a CAD enthusiast, your "Peer Review" is highly welcome! Open an issue or a PR to discuss the architecture.
-
----
