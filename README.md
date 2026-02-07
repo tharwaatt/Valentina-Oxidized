@@ -30,9 +30,9 @@ This is not a mere line-by-line translation. It is an **architectural migration*
 
 ## 📅 The Learning Log
 
-Each stage of development is documented as a "lesson." You can find detailed architectural breakdowns in the [`/docs/analysis`] folder.
+Each stage of development is documented as a "lesson." You can find detailed architectural breakdowns in the `/lessons` folder.
 
-* **Day 1:** [Analyzing `VPointF] - Understanding Pimpl and memory sharing in C++.
+* **Day 1:** Analyzing `VPointF` - Understanding Pimpl and memory sharing in C++.
 
 ---
 
