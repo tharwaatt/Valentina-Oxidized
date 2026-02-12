@@ -1,16 +1,21 @@
 mod types;
 mod geometry;
+mod object; // الملف الجديد
 
-use types::{GOType, DrawMode};
-use geometry::Point2D;
+use object::VPoint;
 
 fn main() {
-    let origin = Point2D::new(0.0, 0.0);
-    let my_point = Point2D::new(10.0, 0.0);
+    // إنشاء أول نقطة فالنتينا حقيقية
+    let p1 = VPoint::new(1, "A", 100.0, 50.0);
+
+    println!("--- Valentina Object Created ---");
+    println!("Name: {}", p1.metadata.name);
+    println!("ID: {}", p1.metadata.id);
+    println!("Coordinates: ({}, {})", p1.x(), p1.y());
+
+    // تخيل إننا بنلفف النقطة دي
+    let origin = geometry::Point2D::new(0.0, 0.0);
+    let rotated_coords = p1.coords.rotate(&origin, 90.0);
     
-    // تجربة الدوران 90 درجة
-    let rotated = my_point.rotate(&origin, 90.0);
-    
-    println!("Point rotated: {:?}", rotated);
-    println!("Type: {:?}", GOType::Point);
+    println!("After 90 deg rotation: ({:.2}, {:.2})", rotated_coords.x, rotated_coords.y);
 }
