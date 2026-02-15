@@ -1,0 +1,9 @@
+#container { display: flex; height: 100vh; font-family: sans-serif; }
+#sidebar { width: 300px; background: #2c3e50; color: white; padding: 20px; }
+#viewport { flex: 1; background: #ecf0f1; position: relative; overflow: hidden; }
+.info-box, .control-box { background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+.virtual-point { 
+    position: absolute; font-size: 50px; color: #e74c3c; 
+    transition: all 0.1s ease-out; 
+}
+.coords-display { position: absolute; bottom: 20px; right: 20px; background: white; padding: 10px; border-radius: 5px; }
