@@ -1,6 +1,6 @@
 {
   "project_name": "Valentina-Oxidized",
-  "status": "Stage 3 - Advanced Geometry System Implemented",
+  "status": "Stage 3 - Path Consolidation Implemented",
   "environment": {
     "os": "Linux",
     "compiler": "rustc",
@@ -12,28 +12,29 @@
     "linking_strategy": "ID-based (u32)"
   },
   "file_map": {
-    "src/main.rs": "Main App loop, Interaction State Machine, SVG Rendering.",
-    "src/object.rs": "Geometric entities (VPoint, VLine, VCubicBezier, VBisector).",
-    "src/geometry.rs": "Mathematical engine (Point2D math).",
+    "src/main.rs": "Main App loop, Interaction State Machine, Path Consolidation logic.",
+    "src/object.rs": "Geometric entities, VContour, EntityRef, SelectedItem.",
+    "src/geometry.rs": "Mathematical engine (Point2D, Bisector math).",
     "src/canvas_coords.rs": "Screen-to-SVG coordinate transformation.",
-    "src/types.rs": "System-enums (GOType, DrawMode)."
+    "src/types.rs": "System-enums."
   },
   "current_features": [
     "High-precision Point creation with Coordinate Mapping",
     "SVG Grid background with dynamic resizing support",
     "Interactive Cubic Bezier Splines (4-point selection)",
-    "Angle Bisector Tool (3-point selection) with automatic angle calculation",
-    "Global Selection System (Points, Lines, Splines) with visual feedback",
+    "Angle Bisector Tool with automatic angle calculation",
+    "Path Consolidation (🧩 Path) - Grouping entities into contours",
+    "Global Selection System (Points, Lines, Splines, Paths) with visual feedback",
     "Interactive Drag & Drop for Points with real-time dependency updates",
     "CSS interaction layer (Hover effects, Selection glow, Grab cursors)",
     "SVG Text Labels (P1, P2...) for points",
     "Cascading Deletion Logic (Cleaning dependencies on delete)",
     "Native Project Persistence (Save/Load via Native File Dialogs)",
-    "Robust State-Machine for interaction (Points/Lines/Splines/Bisectors)",
+    "Robust State-Machine for interaction",
     "Deadlock-free state management using Signal Snapshots"
   ],
   "todo_stage_3": [
-    "Task 3.9: Path Consolidation (Creating closed shapes from entities)",
-    "Task 3.10: Dynamic Measurement Overlays (Live labels for length/angle)"
+    "Task 3.10: Dynamic Measurement Overlays (Live labels for length/angle)",
+    "Task 3.11: Closed Path Logic (Checking for geometric closure)"
   ]
 }

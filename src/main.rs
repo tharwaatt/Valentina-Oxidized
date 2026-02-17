@@ -5,7 +5,7 @@ mod geometry;
 mod object;
 mod canvas_coords;
 
-use object::{VPoint, VLine, VCubicBezier, VBisector, SelectedItem};
+use object::{VPoint, VLine, VCubicBezier, VBisector, VContour, SelectedItem, EntityRef};
 use canvas_coords::{CoordMapper, SvgViewBox, AspectRatioMode};
 use serde_json::Value;
 use serde::{Serialize, Deserialize};
@@ -25,6 +25,8 @@ pub enum CanvasMode {
     BisectorStart,
     BisectorVertex { p1: u32 },
     BisectorEnd { p1: u32, vertex: u32 },
+    // مرحلة إنشاء الكونتور (المسار)
+    ContourCreation { active_contour_id: u32 },
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -33,6 +35,7 @@ pub struct ProjectData {
     pub lines: Vec<VLine>,
     pub splines: Vec<VCubicBezier>,
     pub bisectors: Vec<VBisector>,
+    pub contours: Vec<VContour>,
     pub next_id: u32,
 }
 
@@ -46,6 +49,7 @@ fn App() -> Element {
     let mut lines = use_signal(|| Vec::<VLine>::new());
     let mut splines = use_signal(|| Vec::<VCubicBezier>::new());
     let mut bisectors = use_signal(|| Vec::<VBisector>::new());
+    let mut contours = use_signal(|| Vec::<VContour>::new());
     let mut mode = use_signal(|| CanvasMode::PlacePoint);
     let mut selected_item = use_signal(|| SelectedItem::None);
     let mut dragging_point_id = use_signal(|| None::<u32>);
@@ -79,6 +83,7 @@ fn App() -> Element {
     let lns_snapshot = lines.read().clone();
     let spl_snapshot = splines.read().clone();
     let bis_snapshot = bisectors.read().clone();
+    let cnt_snapshot = contours.read().clone();
     let current_mode = mode.read().clone();
     let current_selection = selected_item.read().clone();
 
@@ -93,6 +98,7 @@ fn App() -> Element {
         CanvasMode::BisectorStart => "Bisector: Select first point",
         CanvasMode::BisectorVertex { .. } => "Bisector: Select vertex (corner)",
         CanvasMode::BisectorEnd { .. } => "Bisector: Select third point",
+        CanvasMode::ContourCreation { .. } => "Contour: Select lines/splines to group",
     };
 
     rsx! {
@@ -125,6 +131,17 @@ fn App() -> Element {
                         onclick: move |_| mode.set(CanvasMode::BisectorStart),
                         "📐 Bis"
                     }
+                    button {
+                        class: if matches!(current_mode, CanvasMode::ContourCreation { .. }) { "active" } else { "" },
+                        onclick: move |_| {
+                            let new_cid = *next_id.read();
+                            let c_name = format!("Path{}", new_cid);
+                            contours.write().push(VContour::new(new_cid, &c_name));
+                            next_id.set(new_cid + 1);
+                            mode.set(CanvasMode::ContourCreation { active_contour_id: new_cid });
+                        },
+                        "🧩 Path"
+                    }
                 }
 
                 p { class: "mode-hint", "{mode_text}" }
@@ -145,7 +162,7 @@ fn App() -> Element {
                                         bisectors.write().retain(|b| b.p1_id != id && b.vertex_id != id && b.p3_id != id);
                                         selected_item.set(SelectedItem::None);
                                     },
-                                    "🗑 Delete Point"
+                                    "🗑 Delete"
                                 }
                             }
                         },
@@ -158,7 +175,7 @@ fn App() -> Element {
                                         lines.write().retain(|l| l.metadata.id != id);
                                         selected_item.set(SelectedItem::None);
                                     },
-                                    "🗑 Delete Line"
+                                    "🗑 Delete"
                                 }
                             }
                         },
@@ -171,7 +188,36 @@ fn App() -> Element {
                                         splines.write().retain(|s| s.metadata.id != id);
                                         selected_item.set(SelectedItem::None);
                                     },
-                                    "🗑 Delete Spline"
+                                    "🗑 Delete"
+                                }
+                            }
+                        },
+                        SelectedItem::Bisector(id) => rsx! { 
+                            div {
+                                p { "Selected Bisector: B{id}" }
+                                button { 
+                                    class: "delete-btn",
+                                    onclick: move |_| {
+                                        bisectors.write().retain(|b| b.metadata.id != id);
+                                        selected_item.set(SelectedItem::None);
+                                    },
+                                    "🗑 Delete"
+                                }
+                            }
+                        },
+                        SelectedItem::Contour(id) => rsx! { 
+                            div {
+                                p { "Selected Path: {id}" }
+                                if let Some(c) = cnt_snapshot.iter().find(|c| c.metadata.id == id) {
+                                    p { class: "stats", "Entities: {c.entities.len()}" }
+                                }
+                                button { 
+                                    class: "delete-btn",
+                                    onclick: move |_| {
+                                        contours.write().retain(|c| c.metadata.id != id);
+                                        selected_item.set(SelectedItem::None);
+                                    },
+                                    "🗑 Delete Path"
                                 }
                             }
                         },
@@ -187,6 +233,7 @@ fn App() -> Element {
                             let lns = lines.read().clone();
                             let spls = splines.read().clone();
                             let bis = bisectors.read().clone();
+                            let cnts = contours.read().clone();
                             let nid = *next_id.read();
                             
                             spawn(async move {
@@ -200,6 +247,7 @@ fn App() -> Element {
                                             lines: lns,
                                             splines: spls,
                                             bisectors: bis,
+                                            contours: cnts,
                                             next_id: nid,
                                         };
                                         if let Ok(json) = serde_json::to_string_pretty(&data) {
@@ -224,6 +272,7 @@ fn App() -> Element {
                                                 lines.set(data.lines);
                                                 splines.set(data.splines);
                                                 bisectors.set(data.bisectors);
+                                                contours.set(data.contours);
                                                 next_id.set(data.next_id);
                                                 selected_item.set(SelectedItem::None);
                                             }
@@ -240,6 +289,7 @@ fn App() -> Element {
                     li { "Points: {pts_snapshot.len()}" }
                     li { "Lines: {lns_snapshot.len() + bis_snapshot.len()}" }
                     li { "Splines: {spl_snapshot.len()}" }
+                    li { "Paths: {cnt_snapshot.len()}" }
                 }
             }
 
@@ -301,6 +351,9 @@ fn App() -> Element {
                         {
                             let sid = spline.metadata.id;
                             let is_selected = matches!(current_selection, SelectedItem::Spline(id) if id == sid);
+                            // تمييز إذا كان جزء من كونتور
+                            let is_in_contour = cnt_snapshot.iter().any(|c| c.entities.contains(&EntityRef::Spline(sid)));
+                            
                             let p1 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p1_id);
                             let p2 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p2_id);
                             let p3 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p3_id);
@@ -314,12 +367,18 @@ fn App() -> Element {
                                         key: "spl-{sid}",
                                         class: if is_selected { "selected" } else { "" },
                                         d: "{d_path}",
-                                        stroke: "#2ecc71", 
-                                        stroke_width: "3",
+                                        stroke: if is_in_contour { "#f39c12" } else { "#2ecc71" }, 
+                                        stroke_width: if is_in_contour { "5" } else { "3" },
                                         fill: "none",
                                         onmousedown: move |evt| {
                                             evt.stop_propagation();
-                                            selected_item.set(SelectedItem::Spline(sid));
+                                            if let CanvasMode::ContourCreation { active_contour_id } = *mode.read() {
+                                                if let Some(c) = contours.write().iter_mut().find(|c| c.metadata.id == active_contour_id) {
+                                                    c.entities.push(EntityRef::Spline(sid));
+                                                }
+                                            } else {
+                                                selected_item.set(SelectedItem::Spline(sid));
+                                            }
                                         }
                                     }
                                 }
@@ -332,6 +391,8 @@ fn App() -> Element {
                         {
                             let lid = line.metadata.id;
                             let is_selected = matches!(current_selection, SelectedItem::Line(id) if id == lid);
+                            let is_in_contour = cnt_snapshot.iter().any(|c| c.entities.contains(&EntityRef::Line(lid)));
+
                             let p1 = pts_snapshot.iter().find(|p| p.metadata.id == line.start_point_id);
                             let p2 = pts_snapshot.iter().find(|p| p.metadata.id == line.end_point_id);
                             
@@ -342,10 +403,17 @@ fn App() -> Element {
                                         class: if is_selected { "selected" } else { "" },
                                         x1: "{start.x()}", y1: "{start.y()}", 
                                         x2: "{end.x()}", y2: "{end.y()}", 
-                                        stroke: "#3498db", stroke_width: "3",
+                                        stroke: if is_in_contour { "#f39c12" } else { "#3498db" }, 
+                                        stroke_width: if is_in_contour { "5" } else { "3" },
                                         onmousedown: move |evt| {
                                             evt.stop_propagation();
-                                            selected_item.set(SelectedItem::Line(lid));
+                                            if let CanvasMode::ContourCreation { active_contour_id } = *mode.read() {
+                                                if let Some(c) = contours.write().iter_mut().find(|c| c.metadata.id == active_contour_id) {
+                                                    c.entities.push(EntityRef::Line(lid));
+                                                }
+                                            } else {
+                                                selected_item.set(SelectedItem::Line(lid));
+                                            }
                                         }
                                     }
                                 }
@@ -357,6 +425,7 @@ fn App() -> Element {
                     for bis in bis_snapshot.iter() {
                         {
                             let bid = bis.metadata.id;
+                            let is_selected = matches!(current_selection, SelectedItem::Bisector(id) if id == bid);
                             let p1 = pts_snapshot.iter().find(|p| p.metadata.id == bis.p1_id);
                             let vertex = pts_snapshot.iter().find(|p| p.metadata.id == bis.vertex_id);
                             let p3 = pts_snapshot.iter().find(|p| p.metadata.id == bis.p3_id);
@@ -366,10 +435,21 @@ fn App() -> Element {
                                 rsx! {
                                     line { 
                                         key: "bis-{bid}",
+                                        class: if is_selected { "selected" } else { "" },
                                         x1: "{v.x()}", y1: "{v.y()}", 
                                         x2: "{end_coords.x}", y2: "{end_coords.y}", 
                                         stroke: "#9b59b6", stroke_width: "2",
-                                        stroke_dasharray: "5,5" // تمييز المنصف بخط متقطع
+                                        stroke_dasharray: "5,5",
+                                        onmousedown: move |evt| {
+                                            evt.stop_propagation();
+                                            if let CanvasMode::ContourCreation { active_contour_id } = *mode.read() {
+                                                if let Some(c) = contours.write().iter_mut().find(|c| c.metadata.id == active_contour_id) {
+                                                    c.entities.push(EntityRef::Bisector(bid));
+                                                }
+                                            } else {
+                                                selected_item.set(SelectedItem::Bisector(bid));
+                                            }
+                                        }
                                     }
                                 }
                             } else { rsx! { "" } }
@@ -412,8 +492,8 @@ fn App() -> Element {
                                         style: "cursor: grab; pointer-events: all;",
                                         onmousedown: move |evt| {
                                             evt.stop_propagation();
-                                            let mode_val = mode.read().clone();
-                                            match mode_val {
+                                            let current_m = mode.read().clone();
+                                            match current_m {
                                                 CanvasMode::PlacePoint => {
                                                     dragging_point_id.set(Some(pid));
                                                     selected_item.set(SelectedItem::Point(pid));
@@ -448,7 +528,6 @@ fn App() -> Element {
                                                     }
                                                     mode.set(CanvasMode::BezierStart);
                                                 }
-                                                // منطق المنصف
                                                 CanvasMode::BisectorStart => {
                                                     mode.set(CanvasMode::BisectorVertex { p1: pid });
                                                 }
@@ -463,6 +542,9 @@ fn App() -> Element {
                                                         next_id.set(bid + 1);
                                                     }
                                                     mode.set(CanvasMode::BisectorStart);
+                                                }
+                                                CanvasMode::ContourCreation { .. } => {
+                                                    selected_item.set(SelectedItem::Point(pid));
                                                 }
                                             }
                                         }
