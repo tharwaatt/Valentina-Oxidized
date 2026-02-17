@@ -7,3 +7,55 @@
     transition: all 0.1s ease-out; 
 }
 .coords-display { position: absolute; bottom: 20px; right: 20px; background: white; padding: 10px; border-radius: 5px; }
+
+/* SVG Styles */
+circle, line, path {
+    cursor: pointer;
+    transition: stroke 0.2s, fill 0.2s, stroke-width 0.2s;
+}
+
+circle:hover, line:hover, path:hover {
+    stroke: #f1c40f !important;
+    stroke-width: 4px !important;
+}
+
+.selected {
+    stroke: #f1c40f !important;
+    stroke-width: 5px !important;
+    filter: drop-shadow(0 0 5px rgba(241, 196, 15, 0.8));
+}
+
+circle.selected {
+    fill: #f1c40f !important;
+}
+
+.toolbar button {
+    background: #34495e;
+    color: white;
+    border: 1px solid #5d6d7e;
+    padding: 8px 12px;
+    margin-right: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.toolbar button.active {
+    background: #27ae60;
+    border-color: #2ecc71;
+}
+
+.mode-hint {
+    background: #1a252f;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    margin: 15px 0;
+    color: #bdc3c7;
+    border-left: 4px solid #2ecc71;
+}
+
+.stats {
+    font-size: 0.8em;
+    color: #95a5a6;
+    margin-left: 10px;
+}

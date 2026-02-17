@@ -21,13 +21,14 @@
     "High-precision Point creation with Coordinate Mapping",
     "SVG Grid background with dynamic resizing support",
     "Interactive Cubic Bezier Splines (4-point selection)",
+    "Global Selection System (Points, Lines, Splines) with visual feedback",
+    "CSS interaction layer (Hover effects, Selection glow)",
     "Robust State-Machine for interaction (Points/Lines/Splines)",
     "Deadlock-free state management using Signal Snapshots",
     "External Reference: Valentina C++ source code integrated (valentina-codes/)"
   ],
   "todo_stage_3": [
-    "Task 3.3: Visual selection highlight (CSS classes on SVG)",
-    "Task 3.4: Labels for Points (SVG Text)",
+    "Task 3.4: Labels for Points (SVG Text - P1, P2...)",
     "Task 3.5: Entity deletion and dependency handling"
   ]
 }

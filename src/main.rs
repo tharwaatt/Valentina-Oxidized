@@ -10,6 +10,14 @@ use canvas_coords::{CoordMapper, SvgViewBox, AspectRatioMode};
 use serde_json::Value;
 
 #[derive(Clone, PartialEq, Debug)]
+pub enum SelectedItem {
+    None,
+    Point(u32),
+    Line(u32),
+    Spline(u32),
+}
+
+#[derive(Clone, PartialEq, Debug)]
 pub enum CanvasMode {
     PlacePoint,
     AwaitingLineStart,
@@ -31,6 +39,7 @@ fn App() -> Element {
     let mut lines = use_signal(|| Vec::<VLine>::new());
     let mut splines = use_signal(|| Vec::<VCubicBezier>::new());
     let mut mode = use_signal(|| CanvasMode::PlacePoint);
+    let mut selected_item = use_signal(|| SelectedItem::None);
     let mut next_id = use_signal(|| 1u32);
     let mut svg_elem_size = use_signal(|| (1000.0, 1000.0)); // حجم افتراضي
 
@@ -61,6 +70,7 @@ fn App() -> Element {
     let lns_snapshot = lines.read().clone();
     let spl_snapshot = splines.read().clone();
     let current_mode = mode.read().clone();
+    let current_selection = selected_item.read().clone();
 
     let mode_text = match current_mode {
         CanvasMode::PlacePoint => "Click background to add Points",
@@ -98,6 +108,16 @@ fn App() -> Element {
 
                 p { class: "mode-hint", "{mode_text}" }
                 
+                div { class: "info-box",
+                    h3 { "Selection" }
+                    match current_selection {
+                        SelectedItem::None => rsx! { p { "Nothing selected" } },
+                        SelectedItem::Point(id) => rsx! { p { "Selected Point: P{id}" } },
+                        SelectedItem::Line(id) => rsx! { p { "Selected Line: L{id}" } },
+                        SelectedItem::Spline(id) => rsx! { p { "Selected Spline: S{id}" } },
+                    }
+                }
+
                 h3 { "Entities" }
                 ul {
                     li { "Points: {pts_snapshot.len()}" }
@@ -110,7 +130,7 @@ fn App() -> Element {
                 svg {
                     id: "main-canvas",
                     width: "100%", height: "100%", view_box: "0 0 1000 1000",
-                    preserve_aspect_ratio: "xMidYMid meet", // تغيير لـ meet لسهولة الحساب
+                    preserve_aspect_ratio: "xMidYMid meet",
                     
                     defs {
                         pattern { id: "grid", width: "50", height: "50", pattern_units: "userSpaceOnUse",
@@ -118,7 +138,7 @@ fn App() -> Element {
                         }
                     }
 
-                    // خلفية للنقر
+                    // خلفية للنقر لإلغاء الاختيار أو إضافة نقطة
                     rect {
                         width: "100%", height: "100%", fill: "url(#grid)",
                         onclick: move |evt| {
@@ -135,12 +155,15 @@ fn App() -> Element {
                                 points.write().push(VPoint::new(id, &format!("P{}", id), svg_x, svg_y));
                                 next_id.set(id + 1);
                             }
+                            selected_item.set(SelectedItem::None);
                         }
                     }
 
                     // رسم المنحنيات (Splines)
                     for spline in spl_snapshot.iter() {
                         {
+                            let sid = spline.metadata.id;
+                            let is_selected = matches!(current_selection, SelectedItem::Spline(id) if id == sid);
                             let p1 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p1_id);
                             let p2 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p2_id);
                             let p3 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p3_id);
@@ -151,11 +174,16 @@ fn App() -> Element {
                                     s.x(), s.y(), c1.x(), c1.y(), c2.x(), c2.y(), e.x(), e.y());
                                 rsx! {
                                     path { 
-                                        key: "{spline.metadata.id}",
+                                        key: "spl-{sid}",
+                                        class: if is_selected { "selected" } else { "" },
                                         d: "{d_path}",
                                         stroke: "#2ecc71", 
                                         stroke_width: "3",
-                                        fill: "none"
+                                        fill: "none",
+                                        onclick: move |evt| {
+                                            evt.stop_propagation();
+                                            selected_item.set(SelectedItem::Spline(sid));
+                                        }
                                     }
                                 }
                             } else { rsx! { "" } }
@@ -165,16 +193,23 @@ fn App() -> Element {
                     // رسم الخطوط
                     for line in lns_snapshot.iter() {
                         {
+                            let lid = line.metadata.id;
+                            let is_selected = matches!(current_selection, SelectedItem::Line(id) if id == lid);
                             let p1 = pts_snapshot.iter().find(|p| p.metadata.id == line.start_point_id);
                             let p2 = pts_snapshot.iter().find(|p| p.metadata.id == line.end_point_id);
                             
                             if let (Some(start), Some(end)) = (p1, p2) {
                                 rsx! {
                                     line { 
-                                        key: "{line.metadata.id}",
+                                        key: "ln-{lid}",
+                                        class: if is_selected { "selected" } else { "" },
                                         x1: "{start.x()}", y1: "{start.y()}", 
                                         x2: "{end.x()}", y2: "{end.y()}", 
-                                        stroke: "#3498db", stroke_width: "2" 
+                                        stroke: "#3498db", stroke_width: "3",
+                                        onclick: move |evt| {
+                                            evt.stop_propagation();
+                                            selected_item.set(SelectedItem::Line(lid));
+                                        }
                                     }
                                 }
                             } else { rsx! { "" } }
@@ -187,6 +222,7 @@ fn App() -> Element {
                             let pid = p.metadata.id;
                             let px = p.x();
                             let py = p.y();
+                            let is_selected = matches!(current_selection, SelectedItem::Point(id) if id == pid);
                             
                             let is_bezier_active = match &current_mode {
                                 CanvasMode::BezierControl1 { p1 } => *p1 == pid,
@@ -203,21 +239,26 @@ fn App() -> Element {
                             let is_active = is_line_active || is_bezier_active;
                             
                             let fill_color = if is_active { "#f1c40f" } 
+                                             else if is_selected { "#f1c40f" }
                                              else if !matches!(current_mode, CanvasMode::PlacePoint) { "#e67e22" }
                                              else { "#e74c3c" };
 
                             rsx! {
                                 circle { 
-                                    key: "{pid}",
+                                    key: "pt-{pid}",
+                                    class: if is_selected { "selected" } else { "" },
                                     cx: "{px}", cy: "{py}", r: "10", 
                                     fill: "{fill_color}",
-                                    stroke: if is_active { "white" } else { "none" },
+                                    stroke: if is_active || is_selected { "white" } else { "none" },
                                     stroke_width: "2",
                                     style: "cursor: pointer; pointer-events: all;",
                                     onclick: move |evt| {
                                         evt.stop_propagation();
                                         let mode_val = mode.read().clone();
                                         match mode_val {
+                                            CanvasMode::PlacePoint => {
+                                                selected_item.set(SelectedItem::Point(pid));
+                                            }
                                             CanvasMode::AwaitingLineStart => {
                                                 mode.set(CanvasMode::AwaitingLineEnd { first_point_id: pid });
                                             }
@@ -248,7 +289,6 @@ fn App() -> Element {
                                                 }
                                                 mode.set(CanvasMode::BezierStart);
                                             }
-                                            _ => {}
                                         }
                                     }
                                 }
