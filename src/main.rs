@@ -50,6 +50,7 @@ fn App() -> Element {
     let mut splines = use_signal(|| Vec::<VCubicBezier>::new());
     let mut mode = use_signal(|| CanvasMode::PlacePoint);
     let mut selected_item = use_signal(|| SelectedItem::None);
+    let mut dragging_point_id = use_signal(|| None::<u32>); // تتبع النقطة التي يتم سحبها
     let mut next_id = use_signal(|| 1u32);
     let mut svg_elem_size = use_signal(|| (1000.0, 1000.0)); // حجم افتراضي
 
@@ -94,7 +95,11 @@ fn App() -> Element {
 
     rsx! {
         style { {include_str!("../assets/main.css")} }
-        div { id: "container",
+        div { 
+            id: "container",
+            // منع اختيار النصوص أثناء السحب لضمان تجربة سلسة
+            style: if dragging_point_id().is_some() { "user-select: none; cursor: grabbing;" } else { "" },
+            
             div { id: "sidebar",
                 h2 { "Valentina-Oxidized 🦀" }
                 
@@ -228,7 +233,29 @@ fn App() -> Element {
                 }
             }
 
-            div { id: "viewport",
+            div { 
+                id: "viewport",
+                onmousemove: move |evt| {
+                    if let Some(pid) = *dragging_point_id.read() {
+                        let coords = evt.element_coordinates();
+                        let (elem_w, elem_h) = *svg_elem_size.read();
+                        let mapper = CoordMapper {
+                            viewbox: SvgViewBox { min_x: 0.0, min_y: 0.0, width: 1000.0, height: 1000.0 },
+                            preserve_aspect_ratio: AspectRatioMode::Meet,
+                        };
+                        let (svg_x, svg_y) = mapper.to_svg_space(coords.x, coords.y, elem_w, elem_h);
+                        
+                        // تحديث إحداثيات النقطة التي يتم سحبها
+                        let mut points_lock = points.write();
+                        if let Some(p) = points_lock.iter_mut().find(|p| p.metadata.id == pid) {
+                            p.coords.x = svg_x;
+                            p.coords.y = svg_y;
+                        }
+                    }
+                },
+                onmouseup: move |_| {
+                    dragging_point_id.set(None);
+                },
                 svg {
                     id: "main-canvas",
                     width: "100%", height: "100%", view_box: "0 0 1000 1000",
@@ -243,7 +270,7 @@ fn App() -> Element {
                     // خلفية للنقر لإلغاء الاختيار أو إضافة نقطة
                     rect {
                         width: "100%", height: "100%", fill: "url(#grid)",
-                        onclick: move |evt| {
+                        onmousedown: move |evt| {
                             if *mode.read() == CanvasMode::PlacePoint {
                                 let coords = evt.element_coordinates();
                                 let (elem_w, elem_h) = *svg_elem_size.read();
@@ -282,7 +309,7 @@ fn App() -> Element {
                                         stroke: "#2ecc71", 
                                         stroke_width: "3",
                                         fill: "none",
-                                        onclick: move |evt| {
+                                        onmousedown: move |evt| {
                                             evt.stop_propagation();
                                             selected_item.set(SelectedItem::Spline(sid));
                                         }
@@ -308,7 +335,7 @@ fn App() -> Element {
                                         x1: "{start.x()}", y1: "{start.y()}", 
                                         x2: "{end.x()}", y2: "{end.y()}", 
                                         stroke: "#3498db", stroke_width: "3",
-                                        onclick: move |evt| {
+                                        onmousedown: move |evt| {
                                             evt.stop_propagation();
                                             selected_item.set(SelectedItem::Line(lid));
                                         }
@@ -346,63 +373,72 @@ fn App() -> Element {
                                              else { "#e74c3c" };
 
                             rsx! {
-                                circle { 
-                                    key: "pt-{pid}",
-                                    class: if is_selected { "selected" } else { "" },
-                                    cx: "{px}", cy: "{py}", r: "10", 
-                                    fill: "{fill_color}",
-                                    stroke: if is_active || is_selected { "white" } else { "none" },
-                                    stroke_width: "2",
-                                    style: "cursor: pointer; pointer-events: all;",
-                                    onclick: move |evt| {
-                                        evt.stop_propagation();
-                                        let mode_val = mode.read().clone();
-                                        match mode_val {
-                                            CanvasMode::PlacePoint => {
+                                g {
+                                    key: "pt-group-{pid}",
+                                    circle { 
+                                        key: "pt-{pid}",
+                                        class: if is_selected { "selected" } else { "" },
+                                        cx: "{px}", cy: "{py}", r: "10", 
+                                        fill: "{fill_color}",
+                                        stroke: if is_active || is_selected { "white" } else { "none" },
+                                        stroke_width: "2",
+                                        style: "cursor: grab; pointer-events: all;",
+                                        onmousedown: move |evt| {
+                                            evt.stop_propagation();
+                                            
+                                            // بدء عملية السحب إذا كنا في وضع PlacePoint
+                                            if *mode.read() == CanvasMode::PlacePoint {
+                                                dragging_point_id.set(Some(pid));
                                                 selected_item.set(SelectedItem::Point(pid));
-                                            }
-                                            CanvasMode::AwaitingLineStart => {
-                                                mode.set(CanvasMode::AwaitingLineEnd { first_point_id: pid });
-                                            }
-                                            CanvasMode::AwaitingLineEnd { first_point_id } => {
-                                                if first_point_id != pid {
-                                                    let lid = *next_id.read();
-                                                    let line_name = format!("L{}", lid);
-                                                    lines.write().push(VLine::new(lid, &line_name, first_point_id, pid));
-                                                    next_id.set(lid + 1);
+                                            } else {
+                                                // منطق الاختيار لبناء الخطوط/المنحنيات
+                                                let mode_val = mode.read().clone();
+                                                match mode_val {
+                                                    CanvasMode::AwaitingLineStart => {
+                                                        mode.set(CanvasMode::AwaitingLineEnd { first_point_id: pid });
+                                                    }
+                                                    CanvasMode::AwaitingLineEnd { first_point_id } => {
+                                                        if first_point_id != pid {
+                                                            let lid = *next_id.read();
+                                                            let line_name = format!("L{}", lid);
+                                                            lines.write().push(VLine::new(lid, &line_name, first_point_id, pid));
+                                                            next_id.set(lid + 1);
+                                                        }
+                                                        mode.set(CanvasMode::AwaitingLineStart);
+                                                    }
+                                                    CanvasMode::BezierStart => {
+                                                        mode.set(CanvasMode::BezierControl1 { p1: pid });
+                                                    }
+                                                    CanvasMode::BezierControl1 { p1 } => {
+                                                        mode.set(CanvasMode::BezierControl2 { p1, p2: pid });
+                                                    }
+                                                    CanvasMode::BezierControl2 { p1, p2 } => {
+                                                        mode.set(CanvasMode::BezierEnd { p1, p2, p3: pid });
+                                                    }
+                                                    CanvasMode::BezierEnd { p1, p2, p3 } => {
+                                                        if pid != p1 && pid != p2 && pid != p3 {
+                                                            let sid = *next_id.read();
+                                                            let spline_name = format!("S{}", sid);
+                                                            splines.write().push(VCubicBezier::new(sid, &spline_name, p1, p2, p3, pid));
+                                                            next_id.set(sid + 1);
+                                                        }
+                                                        mode.set(CanvasMode::BezierStart);
+                                                    }
+                                                    _ => {}
                                                 }
-                                                mode.set(CanvasMode::AwaitingLineStart);
-                                            }
-                                            CanvasMode::BezierStart => {
-                                                mode.set(CanvasMode::BezierControl1 { p1: pid });
-                                            }
-                                            CanvasMode::BezierControl1 { p1 } => {
-                                                mode.set(CanvasMode::BezierControl2 { p1, p2: pid });
-                                            }
-                                            CanvasMode::BezierControl2 { p1, p2 } => {
-                                                mode.set(CanvasMode::BezierEnd { p1, p2, p3: pid });
-                                            }
-                                            CanvasMode::BezierEnd { p1, p2, p3 } => {
-                                                if pid != p1 && pid != p2 && pid != p3 {
-                                                    let sid = *next_id.read();
-                                                    let spline_name = format!("S{}", sid);
-                                                    splines.write().push(VCubicBezier::new(sid, &spline_name, p1, p2, p3, pid));
-                                                    next_id.set(sid + 1);
-                                                }
-                                                mode.set(CanvasMode::BezierStart);
                                             }
                                         }
                                     }
-                                }
-                                text {
-                                    key: "lbl-{pid}",
-                                    x: "{px + 15.0}",
-                                    y: "{py - 15.0}",
-                                    fill: "#2c3e50",
-                                    font_size: "18",
-                                    font_weight: "bold",
-                                    style: "pointer-events: none; user-select: none;",
-                                    "{p.metadata.name}"
+                                    text {
+                                        key: "lbl-{pid}",
+                                        x: "{px + 15.0}",
+                                        y: "{py - 15.0}",
+                                        fill: "#2c3e50",
+                                        font_size: "18",
+                                        font_weight: "bold",
+                                        style: "pointer-events: none; user-select: none;",
+                                        "{p.metadata.name}"
+                                    }
                                 }
                             }
                         }

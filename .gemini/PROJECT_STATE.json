@@ -22,7 +22,8 @@
     "SVG Grid background with dynamic resizing support",
     "Interactive Cubic Bezier Splines (4-point selection)",
     "Global Selection System (Points, Lines, Splines) with visual feedback",
-    "CSS interaction layer (Hover effects, Selection glow)",
+    "Interactive Drag & Drop for Points with real-time dependency updates",
+    "CSS interaction layer (Hover effects, Selection glow, Grab cursors)",
     "SVG Text Labels (P1, P2...) for points",
     "Cascading Deletion Logic (Cleaning dependencies on delete)",
     "Native Project Persistence (Save/Load via Native File Dialogs)",
@@ -30,7 +31,7 @@
     "Deadlock-free state management using Signal Snapshots"
   ],
   "todo_stage_3": [
-    "Task 3.7: Interactive Point Transformation (Drag & Drop)",
-    "Task 3.8: Advanced Geometric Tools (Angle, Bisector)"
+    "Task 3.8: Advanced Geometric Tools (Angle, Bisector)",
+    "Task 3.9: Path Consolidation (Creating closed shapes from entities)"
   ]
 }

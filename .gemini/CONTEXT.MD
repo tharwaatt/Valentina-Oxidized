@@ -17,16 +17,16 @@ A modern, Rust-based CAD tool for fashion pattern making. Built for performance 
 - **Stage 1 (Foundation)**: Mathematical primitives (Point2D). [Status: DONE]
 - **Stage 2 (Canvas)**: Dioxus Integration & Interactive Point creation. [Status: DONE]
 - **Stage 3 (Relationships)**: Connecting entities via Lines and Curves. [Status: IN_PROGRESS]
-  - Task 3.1 - 3.6: Completed.
-  - Task 3.7: Interactive Point Transformation (Drag & Drop). (Current)
+  - Task 3.1 - 3.7: Completed.
+  - Task 3.8: Advanced Geometric Tools. (Current)
   - Milestone 3 Goal: Stable Geometric Graph Editor.
 
 ## 🛑 Lessons Learned (Memory for Agent)
 - **Coordinate Normalization**: SVG `viewBox` requires a `CoordMapper` to translate CSS pixels to user-space units accurately.
 - **Dioxus 0.7 Signals**: Use `Snapshotting` (clone before render) to avoid deadlocks when mixing read and write access in the UI loop.
-- **Event Delegation**: `stop_propagation()` is not always reliable in Dioxus Desktop; a state-machine (`CanvasMode`) is the robust alternative.
-- **Native File I/O**: Use `rfd` for asynchronous, non-blocking native file dialogs in Desktop apps.
+- **Reactive Drag & Drop**: Using ID-based linking allows for seamless dragging; updating a point's coordinates automatically re-renders all dependent lines/splines.
+- **Event Management**: Combine `onmousedown` on elements with `onmousemove`/`onmouseup` on the container for the most stable drag experience.
 
-## 🎯 Next Objective: Manipulation & Advanced Geometry
-1. Interactive Point Dragging: Moving points and updating all connected lines/splines in real-time.
-2. Geometry Engine expansion: Adding tools for angles, intersections, and bisectors based on the original Valentina logic.
+## 🎯 Next Objective: Advanced Geometry & Measurement
+1. Geometry Engine expansion: Implementing tools for angles, intersections, and bisectors by porting original Valentina C++ logic.
+2. Live Measurement Overlay: Displaying lengths and angles directly on the canvas during interaction.
