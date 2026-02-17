@@ -3,7 +3,7 @@ use crate::geometry::Point2D;
 
 /// البيانات المشتركة لكل كائنات Valentina
 /// بدلاً من الوراثة (Inheritance)، هنستخدم التركيب (Composition)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VGObject {
     pub id: u32,
     pub name: String,
@@ -42,118 +42,55 @@ impl VPoint {
 
 
 #[derive(Debug, Clone)]
-
-
 pub struct VLine {
-
-
     pub metadata: VGObject,
-
-
     pub start_point_id: u32,
-
-
     pub end_point_id: u32,
+}
 
+impl VLine {
+    pub fn new(id: u32, name: &str, start_id: u32, end_id: u32) -> Self {
+        Self {
+            metadata: VGObject::new(id, name, crate::types::GOType::Line),
+            start_point_id: start_id,
+            end_point_id: end_id,
+        }
+    }
 
+    /// حساب طول الخط بناءً على إحداثيات النقاط المرتبطة به.
+    /// ملاحظة: بما أن الخط يخزن المعرفات فقط، يجب تمرير مراجع للنقاط من الخارج.
+    pub fn length(&self, start_p: &VPoint, end_p: &VPoint) -> f64 {
+        let dx = end_p.x() - start_p.x();
+        let dy = end_p.y() - start_p.y();
+        (dx * dx + dy * dy).sqrt()
+    }
+
+    /// حساب زاوية الخط بالدرجات (Degrees).
+    pub fn angle(&self, start_p: &VPoint, end_p: &VPoint) -> f64 {
+        let dx = end_p.x() - start_p.x();
+        let dy = end_p.y() - start_p.y();
+        dy.atan2(dx).to_degrees()
+    }
 }
 
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct VCubicBezier {
+    pub metadata: VGObject,
+    pub p1_id: u32, // Start
+    pub p2_id: u32, // Control 1
+    pub p3_id: u32, // Control 2
+    pub p4_id: u32, // End
+}
 
-
-
-impl VLine {
-
-
-    pub fn new(id: u32, name: &str, start_id: u32, end_id: u32) -> Self {
-
-
+impl VCubicBezier {
+    pub fn new(id: u32, name: &str, p1: u32, p2: u32, p3: u32, p4: u32) -> Self {
         Self {
-
-
-            metadata: VGObject::new(id, name, crate::types::GOType::Line),
-
-
-            start_point_id: start_id,
-
-
-            end_point_id: end_id,
-
-
+            metadata: VGObject::new(id, name, crate::types::GOType::Spline),
+            p1_id: p1,
+            p2_id: p2,
+            p3_id: p3,
+            p4_id: p4,
         }
-
-
     }
-
-
-
-
-
-    /// حساب طول الخط بناءً على إحداثيات النقاط المرتبطة به.
-
-
-    /// ملاحظة: بما أن الخط يخزن المعرفات فقط، يجب تمرير مراجع للنقاط من الخارج.
-
-
-    pub fn length(&self, start_p: &VPoint, end_p: &VPoint) -> f64 {
-
-
-        let dx = end_p.x() - start_p.x();
-
-
-        let dy = end_p.y() - start_p.y();
-
-
-        (dx * dx + dy * dy).sqrt()
-
-
-    }
-
-
-
-
-
-        /// حساب زاوية الخط بالدرجات (Degrees).
-
-
-
-
-
-        pub fn angle(&self, start_p: &VPoint, end_p: &VPoint) -> f64 {
-
-
-
-
-
-            let dx = end_p.x() - start_p.x();
-
-
-
-
-
-            let dy = end_p.y() - start_p.y();
-
-
-
-
-
-            dy.atan2(dx).to_degrees()
-
-
-
-
-
-        }
-
-
-
-
-
-    }
-
-
-
-
-
-    
-
+}

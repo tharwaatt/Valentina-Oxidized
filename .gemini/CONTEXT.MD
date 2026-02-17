@@ -1,29 +1,30 @@
-# Valentina-Oxidized: Project Context (Ready for Day 5)
+# Valentina-Oxidized: Project Context (Stage 3 - Relationships)
 
 ## 🌟 Vision
 A modern, Rust-based CAD tool for fashion pattern making. Built for performance and safety using the Dioxus framework and SVG rendering.
 
 ## 🛠 Tech Stack (Established)
-- **Rust Stable**: Core logic.
-- **Dioxus 0.7+**: Desktop GUI with SVG support.
+- **Rust Stable**: Core logic (edition 2024).
+- **Dioxus 0.7.3**: Desktop GUI with SVG support and `document` features.
 - **SVG**: For vector-perfect geometric drawing.
 - **Target OS**: Linux (Ubuntu environment).
 
 ## 📍 Roadmap Evolution: Stages
 - **Stage 1 (Foundation)**: Mathematical primitives (Point2D). [Status: DONE]
 - **Stage 2 (Canvas)**: Dioxus Integration & Interactive Point creation. [Status: DONE]
-- **Stage 3 (Relationships)**: Connecting entities via Lines and Angles. [Status: IN_PROGRESS]
+- **Stage 3 (Relationships)**: Connecting entities via Lines and Curves. [Status: IN_PROGRESS]
   - Task 3.1: Define VLine & ID-based linking. (Completed)
-  - Task 3.2: Implement Length/Angle calculations. (Completed)
-  - Task 3.3: Visual feedback for selected points. (Completed)
+  - Task 3.2: Implement Cubic Bezier Splines. (Completed)
+  - Task 3.3: Visual selection highlight. (Current)
+  - Task 3.4: SVG Text Labels for points. (Next)
 
 ## 🛑 Lessons Learned (Memory for Agent)
-- **ID-Based Ownership**: In CAD tools, decoupling geometry from topology via IDs is essential for the Rust borrow checker.
-- **Math on the Fly**: Calculating properties (length, angle) in the UI loop should pass point references to the line methods.
-- **Dioxus Interaction**: Selection modes are best managed via signals representing "optional IDs".
+- **Coordinate Normalization**: SVG `viewBox` requires a `CoordMapper` to translate CSS pixels to user-space units accurately.
+- **Dioxus 0.7 Signals**: Use `Snapshotting` (clone before render) to avoid deadlocks when mixing read and write access in the UI loop.
+- **Event Delegation**: `stop_propagation()` is not always reliable in Dioxus Desktop; a state-machine (`CanvasMode`) is the robust alternative.
 
-## 🎯 Next Objective: Day 6 - Interaction & Deletion
-With lines in place, the next step is:
-1. Enabling "Delete" for points and lines (and handling the fallout).
-2. SVG text labels to identify points (P1, P2) in the canvas.
-3. Adding CSS transitions for a smoother CAD experience.
+## 🎯 Next Objective: Selection & Visual Feedback
+With lines and splines functional, we must improve the UI:
+1. CSS classes for "Selected" and "Hover" states on SVG elements.
+2. SVG text labels (P1, P2, etc.) that float near points.
+3. Deletion logic: what happens to a line if its start point is deleted? (Dependency tracking).

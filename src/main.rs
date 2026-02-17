@@ -5,7 +5,7 @@ mod geometry;
 mod object;
 mod canvas_coords;
 
-use object::{VPoint, VLine};
+use object::{VPoint, VLine, VCubicBezier};
 use canvas_coords::{CoordMapper, SvgViewBox, AspectRatioMode};
 use serde_json::Value;
 
@@ -14,6 +14,11 @@ pub enum CanvasMode {
     PlacePoint,
     AwaitingLineStart,
     AwaitingLineEnd { first_point_id: u32 },
+    // مراحل منحنى بيزيه
+    BezierStart,
+    BezierControl1 { p1: u32 },
+    BezierControl2 { p1: u32, p2: u32 },
+    BezierEnd { p1: u32, p2: u32, p3: u32 },
 }
 
 fn main() {
@@ -24,6 +29,7 @@ fn main() {
 fn App() -> Element {
     let mut points = use_signal(|| Vec::<VPoint>::new());
     let mut lines = use_signal(|| Vec::<VLine>::new());
+    let mut splines = use_signal(|| Vec::<VCubicBezier>::new());
     let mut mode = use_signal(|| CanvasMode::PlacePoint);
     let mut next_id = use_signal(|| 1u32);
     let mut svg_elem_size = use_signal(|| (1000.0, 1000.0)); // حجم افتراضي
@@ -53,12 +59,17 @@ fn App() -> Element {
     // سحب البيانات من الـ Signals قبل الرسم لتجنب Deadlock
     let pts_snapshot = points.read().clone();
     let lns_snapshot = lines.read().clone();
+    let spl_snapshot = splines.read().clone();
     let current_mode = mode.read().clone();
 
     let mode_text = match current_mode {
         CanvasMode::PlacePoint => "Click background to add Points",
         CanvasMode::AwaitingLineStart => "Click Start Point for Line",
         CanvasMode::AwaitingLineEnd { .. } => "Click End Point for Line",
+        CanvasMode::BezierStart => "Bezier: Select Start Point",
+        CanvasMode::BezierControl1 { .. } => "Bezier: Select Control Point 1",
+        CanvasMode::BezierControl2 { .. } => "Bezier: Select Control Point 2",
+        CanvasMode::BezierEnd { .. } => "Bezier: Select End Point",
     };
 
     rsx! {
@@ -71,37 +82,27 @@ fn App() -> Element {
                     button {
                         class: if matches!(current_mode, CanvasMode::PlacePoint) { "active" } else { "" },
                         onclick: move |_| mode.set(CanvasMode::PlacePoint),
-                        "📍 Place Point"
+                        "📍 Pt"
                     }
                     button {
-                        class: if !matches!(current_mode, CanvasMode::PlacePoint) { "active" } else { "" },
+                        class: if matches!(current_mode, CanvasMode::AwaitingLineStart | CanvasMode::AwaitingLineEnd { .. }) { "active" } else { "" },
                         onclick: move |_| mode.set(CanvasMode::AwaitingLineStart),
-                        "📏 Draw Line"
+                        "📏 Line"
+                    }
+                    button {
+                        class: if matches!(current_mode, CanvasMode::BezierStart | CanvasMode::BezierControl1 { .. } | CanvasMode::BezierControl2 { .. } | CanvasMode::BezierEnd { .. }) { "active" } else { "" },
+                        onclick: move |_| mode.set(CanvasMode::BezierStart),
+                        "➰ Spline"
                     }
                 }
 
                 p { class: "mode-hint", "{mode_text}" }
                 
-                h3 { "Lines ({lns_snapshot.len()})" }
+                h3 { "Entities" }
                 ul {
-                    for line in lns_snapshot.iter() {
-                        {
-                            let p1 = pts_snapshot.iter().find(|p| p.metadata.id == line.start_point_id);
-                            let p2 = pts_snapshot.iter().find(|p| p.metadata.id == line.end_point_id);
-                            
-                            if let (Some(start), Some(end)) = (p1, p2) {
-                                let len = line.length(start, end);
-                                let ang = line.angle(start, end);
-                                rsx! {
-                                    li { 
-                                        key: "{line.metadata.id}",
-                                        "{line.metadata.name}: P{line.start_point_id} → P{line.end_point_id}"
-                                        span { class: "stats", " | L: {len:.1} | A: {ang:.1}°" }
-                                    }
-                                }
-                            } else { rsx! { "" } }
-                        }
-                    }
+                    li { "Points: {pts_snapshot.len()}" }
+                    li { "Lines: {lns_snapshot.len()}" }
+                    li { "Splines: {spl_snapshot.len()}" }
                 }
             }
 
@@ -137,6 +138,30 @@ fn App() -> Element {
                         }
                     }
 
+                    // رسم المنحنيات (Splines)
+                    for spline in spl_snapshot.iter() {
+                        {
+                            let p1 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p1_id);
+                            let p2 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p2_id);
+                            let p3 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p3_id);
+                            let p4 = pts_snapshot.iter().find(|p| p.metadata.id == spline.p4_id);
+                            
+                            if let (Some(s), Some(c1), Some(c2), Some(e)) = (p1, p2, p3, p4) {
+                                let d_path = format!("M {} {} C {} {}, {} {}, {} {}", 
+                                    s.x(), s.y(), c1.x(), c1.y(), c2.x(), c2.y(), e.x(), e.y());
+                                rsx! {
+                                    path { 
+                                        key: "{spline.metadata.id}",
+                                        d: "{d_path}",
+                                        stroke: "#2ecc71", 
+                                        stroke_width: "3",
+                                        fill: "none"
+                                    }
+                                }
+                            } else { rsx! { "" } }
+                        }
+                    }
+
                     // رسم الخطوط
                     for line in lns_snapshot.iter() {
                         {
@@ -149,7 +174,7 @@ fn App() -> Element {
                                         key: "{line.metadata.id}",
                                         x1: "{start.x()}", y1: "{start.y()}", 
                                         x2: "{end.x()}", y2: "{end.y()}", 
-                                        stroke: "#3498db", stroke_width: "3" 
+                                        stroke: "#3498db", stroke_width: "2" 
                                     }
                                 }
                             } else { rsx! { "" } }
@@ -163,12 +188,21 @@ fn App() -> Element {
                             let px = p.x();
                             let py = p.y();
                             
-                            let is_first_selected = matches!(
+                            let is_bezier_active = match &current_mode {
+                                CanvasMode::BezierControl1 { p1 } => *p1 == pid,
+                                CanvasMode::BezierControl2 { p1, p2 } => *p1 == pid || *p2 == pid,
+                                CanvasMode::BezierEnd { p1, p2, p3 } => *p1 == pid || *p2 == pid || *p3 == pid,
+                                _ => false,
+                            };
+
+                            let is_line_active = matches!(
                                 &current_mode,
                                 CanvasMode::AwaitingLineEnd { first_point_id } if *first_point_id == pid
                             );
+
+                            let is_active = is_line_active || is_bezier_active;
                             
-                            let fill_color = if is_first_selected { "#f1c40f" } 
+                            let fill_color = if is_active { "#f1c40f" } 
                                              else if !matches!(current_mode, CanvasMode::PlacePoint) { "#e67e22" }
                                              else { "#e74c3c" };
 
@@ -177,13 +211,13 @@ fn App() -> Element {
                                     key: "{pid}",
                                     cx: "{px}", cy: "{py}", r: "10", 
                                     fill: "{fill_color}",
-                                    stroke: if is_first_selected { "white" } else { "none" },
+                                    stroke: if is_active { "white" } else { "none" },
                                     stroke_width: "2",
                                     style: "cursor: pointer; pointer-events: all;",
                                     onclick: move |evt| {
                                         evt.stop_propagation();
-                                        let current_selection = mode.read().clone();
-                                        match current_selection {
+                                        let mode_val = mode.read().clone();
+                                        match mode_val {
                                             CanvasMode::AwaitingLineStart => {
                                                 mode.set(CanvasMode::AwaitingLineEnd { first_point_id: pid });
                                             }
@@ -195,6 +229,24 @@ fn App() -> Element {
                                                     next_id.set(lid + 1);
                                                 }
                                                 mode.set(CanvasMode::AwaitingLineStart);
+                                            }
+                                            CanvasMode::BezierStart => {
+                                                mode.set(CanvasMode::BezierControl1 { p1: pid });
+                                            }
+                                            CanvasMode::BezierControl1 { p1 } => {
+                                                mode.set(CanvasMode::BezierControl2 { p1, p2: pid });
+                                            }
+                                            CanvasMode::BezierControl2 { p1, p2 } => {
+                                                mode.set(CanvasMode::BezierEnd { p1, p2, p3: pid });
+                                            }
+                                            CanvasMode::BezierEnd { p1, p2, p3 } => {
+                                                if pid != p1 && pid != p2 && pid != p3 {
+                                                    let sid = *next_id.read();
+                                                    let spline_name = format!("S{}", sid);
+                                                    splines.write().push(VCubicBezier::new(sid, &spline_name, p1, p2, p3, pid));
+                                                    next_id.set(sid + 1);
+                                                }
+                                                mode.set(CanvasMode::BezierStart);
                                             }
                                             _ => {}
                                         }

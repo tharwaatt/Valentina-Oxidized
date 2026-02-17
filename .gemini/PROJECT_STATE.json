@@ -20,14 +20,14 @@
   "current_features": [
     "High-precision Point creation with Coordinate Mapping",
     "SVG Grid background with dynamic resizing support",
-    "Live Length and Angle calculations in Sidebar",
-    "Robust State-Machine for Interaction (Place Point / Draw Line modes)",
+    "Interactive Cubic Bezier Splines (4-point selection)",
+    "Robust State-Machine for interaction (Points/Lines/Splines)",
     "Deadlock-free state management using Signal Snapshots",
     "External Reference: Valentina C++ source code integrated (valentina-codes/)"
   ],
   "todo_stage_3": [
-    "Task 3.2: Implement Bezier Curves (Splines) - Researching original vgeometry/vabstractbezier.h",
     "Task 3.3: Visual selection highlight (CSS classes on SVG)",
-    "Task 3.4: Labels for Points (SVG Text)"
+    "Task 3.4: Labels for Points (SVG Text)",
+    "Task 3.5: Entity deletion and dependency handling"
   ]
 }
