@@ -12,7 +12,7 @@ A modern, Rust-based CAD tool for fashion pattern making. Built for performance 
 - **Target OS**: Linux (Ubuntu environment).
 
 ## 📍 Roadmap Evolution: Stages
-*Detailed track available in [ROADMAP.md](../ROADMAP.md)*
+*Detailed track available in [ROADMAP.md](../docs/ROADMAP.md)*
 
 - **Stage 1 (Foundation)**: Mathematical primitives (Point2D). [Status: DONE]
 - **Stage 2 (Canvas)**: Dioxus Integration & Interactive Point creation. [Status: DONE]
