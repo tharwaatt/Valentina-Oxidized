@@ -292,6 +292,16 @@ fn App() -> Element {
                                         }
                                     }
                                 }
+                                text {
+                                    key: "lbl-{pid}",
+                                    x: "{px + 15.0}",
+                                    y: "{py - 15.0}",
+                                    fill: "#2c3e50",
+                                    font_size: "18",
+                                    font_weight: "bold",
+                                    style: "pointer-events: none; user-select: none;",
+                                    "{p.metadata.name}"
+                                }
                             }
                         }
                     }

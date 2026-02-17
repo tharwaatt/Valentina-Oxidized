@@ -23,12 +23,13 @@
     "Interactive Cubic Bezier Splines (4-point selection)",
     "Global Selection System (Points, Lines, Splines) with visual feedback",
     "CSS interaction layer (Hover effects, Selection glow)",
+    "SVG Text Labels (P1, P2...) for points with automatic positioning",
     "Robust State-Machine for interaction (Points/Lines/Splines)",
     "Deadlock-free state management using Signal Snapshots",
     "External Reference: Valentina C++ source code integrated (valentina-codes/)"
   ],
   "todo_stage_3": [
-    "Task 3.4: Labels for Points (SVG Text - P1, P2...)",
-    "Task 3.5: Entity deletion and dependency handling"
+    "Task 3.5: Entity deletion and dependency handling (Cascading delete)",
+    "Task 3.6: Project persistence (Basic JSON Export)"
   ]
 }

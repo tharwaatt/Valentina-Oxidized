@@ -16,7 +16,8 @@ A modern, Rust-based CAD tool for fashion pattern making. Built for performance 
   - Task 3.1: Define VLine & ID-based linking. (Completed)
   - Task 3.2: Implement Cubic Bezier Splines. (Completed)
   - Task 3.3: Visual selection highlight & Global Selection System. (Completed)
-  - Task 3.4: SVG Text Labels for points. (Current)
+  - Task 3.4: SVG Text Labels for points. (Completed)
+  - Task 3.5: Cascading Deletion logic. (Current)
 
 ## 🛑 Lessons Learned (Memory for Agent)
 - **Coordinate Normalization**: SVG `viewBox` requires a `CoordMapper` to translate CSS pixels to user-space units accurately.
