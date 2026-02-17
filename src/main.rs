@@ -5,19 +5,11 @@ mod geometry;
 mod object;
 mod canvas_coords;
 
-use object::{VPoint, VLine, VCubicBezier};
+use object::{VPoint, VLine, VCubicBezier, VBisector, SelectedItem};
 use canvas_coords::{CoordMapper, SvgViewBox, AspectRatioMode};
 use serde_json::Value;
 use serde::{Serialize, Deserialize};
 use std::fs;
-
-#[derive(Clone, PartialEq, Debug)]
-pub enum SelectedItem {
-    None,
-    Point(u32),
-    Line(u32),
-    Spline(u32),
-}
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum CanvasMode {
@@ -29,6 +21,10 @@ pub enum CanvasMode {
     BezierControl1 { p1: u32 },
     BezierControl2 { p1: u32, p2: u32 },
     BezierEnd { p1: u32, p2: u32, p3: u32 },
+    // مراحل المنصف
+    BisectorStart,
+    BisectorVertex { p1: u32 },
+    BisectorEnd { p1: u32, vertex: u32 },
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -36,6 +32,7 @@ pub struct ProjectData {
     pub points: Vec<VPoint>,
     pub lines: Vec<VLine>,
     pub splines: Vec<VCubicBezier>,
+    pub bisectors: Vec<VBisector>,
     pub next_id: u32,
 }
 
@@ -48,11 +45,12 @@ fn App() -> Element {
     let mut points = use_signal(|| Vec::<VPoint>::new());
     let mut lines = use_signal(|| Vec::<VLine>::new());
     let mut splines = use_signal(|| Vec::<VCubicBezier>::new());
+    let mut bisectors = use_signal(|| Vec::<VBisector>::new());
     let mut mode = use_signal(|| CanvasMode::PlacePoint);
     let mut selected_item = use_signal(|| SelectedItem::None);
-    let mut dragging_point_id = use_signal(|| None::<u32>); // تتبع النقطة التي يتم سحبها
+    let mut dragging_point_id = use_signal(|| None::<u32>);
     let mut next_id = use_signal(|| 1u32);
-    let mut svg_elem_size = use_signal(|| (1000.0, 1000.0)); // حجم افتراضي
+    let mut svg_elem_size = use_signal(|| (1000.0, 1000.0));
 
     // استخدام eval للحصول على حجم الـ SVG الفعلي لضبط الإحداثيات
     use_effect(move || {
@@ -80,24 +78,27 @@ fn App() -> Element {
     let pts_snapshot = points.read().clone();
     let lns_snapshot = lines.read().clone();
     let spl_snapshot = splines.read().clone();
+    let bis_snapshot = bisectors.read().clone();
     let current_mode = mode.read().clone();
     let current_selection = selected_item.read().clone();
 
     let mode_text = match current_mode {
-        CanvasMode::PlacePoint => "Click background to add Points",
-        CanvasMode::AwaitingLineStart => "Click Start Point for Line",
-        CanvasMode::AwaitingLineEnd { .. } => "Click End Point for Line",
+        CanvasMode::PlacePoint => "Click background to add Points / Drag to move",
+        CanvasMode::AwaitingLineStart => "Line: Select Start Point",
+        CanvasMode::AwaitingLineEnd { .. } => "Line: Select End Point",
         CanvasMode::BezierStart => "Bezier: Select Start Point",
         CanvasMode::BezierControl1 { .. } => "Bezier: Select Control Point 1",
         CanvasMode::BezierControl2 { .. } => "Bezier: Select Control Point 2",
         CanvasMode::BezierEnd { .. } => "Bezier: Select End Point",
+        CanvasMode::BisectorStart => "Bisector: Select first point",
+        CanvasMode::BisectorVertex { .. } => "Bisector: Select vertex (corner)",
+        CanvasMode::BisectorEnd { .. } => "Bisector: Select third point",
     };
 
     rsx! {
         style { {include_str!("../assets/main.css")} }
         div { 
             id: "container",
-            // منع اختيار النصوص أثناء السحب لضمان تجربة سلسة
             style: if dragging_point_id().is_some() { "user-select: none; cursor: grabbing;" } else { "" },
             
             div { id: "sidebar",
@@ -112,12 +113,17 @@ fn App() -> Element {
                     button {
                         class: if matches!(current_mode, CanvasMode::AwaitingLineStart | CanvasMode::AwaitingLineEnd { .. }) { "active" } else { "" },
                         onclick: move |_| mode.set(CanvasMode::AwaitingLineStart),
-                        "📏 Line"
+                        "📏 Ln"
                     }
                     button {
                         class: if matches!(current_mode, CanvasMode::BezierStart | CanvasMode::BezierControl1 { .. } | CanvasMode::BezierControl2 { .. } | CanvasMode::BezierEnd { .. }) { "active" } else { "" },
                         onclick: move |_| mode.set(CanvasMode::BezierStart),
-                        "➰ Spline"
+                        "➰ Spl"
+                    }
+                    button {
+                        class: if matches!(current_mode, CanvasMode::BisectorStart | CanvasMode::BisectorVertex { .. } | CanvasMode::BisectorEnd { .. }) { "active" } else { "" },
+                        onclick: move |_| mode.set(CanvasMode::BisectorStart),
+                        "📐 Bis"
                     }
                 }
 
@@ -136,6 +142,7 @@ fn App() -> Element {
                                         points.write().retain(|p| p.metadata.id != id);
                                         lines.write().retain(|l| l.start_point_id != id && l.end_point_id != id);
                                         splines.write().retain(|s| s.p1_id != id && s.p2_id != id && s.p3_id != id && s.p4_id != id);
+                                        bisectors.write().retain(|b| b.p1_id != id && b.vertex_id != id && b.p3_id != id);
                                         selected_item.set(SelectedItem::None);
                                     },
                                     "🗑 Delete Point"
@@ -179,6 +186,7 @@ fn App() -> Element {
                             let pts = points.read().clone();
                             let lns = lines.read().clone();
                             let spls = splines.read().clone();
+                            let bis = bisectors.read().clone();
                             let nid = *next_id.read();
                             
                             spawn(async move {
@@ -191,6 +199,7 @@ fn App() -> Element {
                                             points: pts,
                                             lines: lns,
                                             splines: spls,
+                                            bisectors: bis,
                                             next_id: nid,
                                         };
                                         if let Ok(json) = serde_json::to_string_pretty(&data) {
@@ -214,6 +223,7 @@ fn App() -> Element {
                                                 points.set(data.points);
                                                 lines.set(data.lines);
                                                 splines.set(data.splines);
+                                                bisectors.set(data.bisectors);
                                                 next_id.set(data.next_id);
                                                 selected_item.set(SelectedItem::None);
                                             }
@@ -228,7 +238,7 @@ fn App() -> Element {
                 h3 { "Entities" }
                 ul {
                     li { "Points: {pts_snapshot.len()}" }
-                    li { "Lines: {lns_snapshot.len()}" }
+                    li { "Lines: {lns_snapshot.len() + bis_snapshot.len()}" }
                     li { "Splines: {spl_snapshot.len()}" }
                 }
             }
@@ -245,7 +255,6 @@ fn App() -> Element {
                         };
                         let (svg_x, svg_y) = mapper.to_svg_space(coords.x, coords.y, elem_w, elem_h);
                         
-                        // تحديث إحداثيات النقطة التي يتم سحبها
                         let mut points_lock = points.write();
                         if let Some(p) = points_lock.iter_mut().find(|p| p.metadata.id == pid) {
                             p.coords.x = svg_x;
@@ -267,7 +276,6 @@ fn App() -> Element {
                         }
                     }
 
-                    // خلفية للنقر لإلغاء الاختيار أو إضافة نقطة
                     rect {
                         width: "100%", height: "100%", fill: "url(#grid)",
                         onmousedown: move |evt| {
@@ -319,7 +327,7 @@ fn App() -> Element {
                         }
                     }
 
-                    // رسم الخطوط
+                    // رسم الخطوط العادية
                     for line in lns_snapshot.iter() {
                         {
                             let lid = line.metadata.id;
@@ -345,6 +353,29 @@ fn App() -> Element {
                         }
                     }
 
+                    // رسم المنصفات (Bisectors)
+                    for bis in bis_snapshot.iter() {
+                        {
+                            let bid = bis.metadata.id;
+                            let p1 = pts_snapshot.iter().find(|p| p.metadata.id == bis.p1_id);
+                            let vertex = pts_snapshot.iter().find(|p| p.metadata.id == bis.vertex_id);
+                            let p3 = pts_snapshot.iter().find(|p| p.metadata.id == bis.p3_id);
+                            
+                            if let (Some(p1), Some(v), Some(p3)) = (p1, vertex, p3) {
+                                let end_coords = bis.calculate_end_point(p1, v, p3);
+                                rsx! {
+                                    line { 
+                                        key: "bis-{bid}",
+                                        x1: "{v.x()}", y1: "{v.y()}", 
+                                        x2: "{end_coords.x}", y2: "{end_coords.y}", 
+                                        stroke: "#9b59b6", stroke_width: "2",
+                                        stroke_dasharray: "5,5" // تمييز المنصف بخط متقطع
+                                    }
+                                }
+                            } else { rsx! { "" } }
+                        }
+                    }
+
                     // رسم النقاط
                     for p in pts_snapshot.iter() {
                         {
@@ -353,19 +384,15 @@ fn App() -> Element {
                             let py = p.y();
                             let is_selected = matches!(current_selection, SelectedItem::Point(id) if id == pid);
                             
-                            let is_bezier_active = match &current_mode {
+                            let is_active = match &current_mode {
+                                CanvasMode::AwaitingLineEnd { first_point_id } => *first_point_id == pid,
                                 CanvasMode::BezierControl1 { p1 } => *p1 == pid,
                                 CanvasMode::BezierControl2 { p1, p2 } => *p1 == pid || *p2 == pid,
                                 CanvasMode::BezierEnd { p1, p2, p3 } => *p1 == pid || *p2 == pid || *p3 == pid,
+                                CanvasMode::BisectorVertex { p1 } => *p1 == pid,
+                                CanvasMode::BisectorEnd { p1, vertex } => *p1 == pid || *vertex == pid,
                                 _ => false,
-                            };
-
-                            let is_line_active = matches!(
-                                &current_mode,
-                                CanvasMode::AwaitingLineEnd { first_point_id } if *first_point_id == pid
-                            );
-
-                            let is_active = is_line_active || is_bezier_active;
+                            } || is_selected;
                             
                             let fill_color = if is_active { "#f1c40f" } 
                                              else if is_selected { "#f1c40f" }
@@ -385,46 +412,57 @@ fn App() -> Element {
                                         style: "cursor: grab; pointer-events: all;",
                                         onmousedown: move |evt| {
                                             evt.stop_propagation();
-                                            
-                                            // بدء عملية السحب إذا كنا في وضع PlacePoint
-                                            if *mode.read() == CanvasMode::PlacePoint {
-                                                dragging_point_id.set(Some(pid));
-                                                selected_item.set(SelectedItem::Point(pid));
-                                            } else {
-                                                // منطق الاختيار لبناء الخطوط/المنحنيات
-                                                let mode_val = mode.read().clone();
-                                                match mode_val {
-                                                    CanvasMode::AwaitingLineStart => {
-                                                        mode.set(CanvasMode::AwaitingLineEnd { first_point_id: pid });
+                                            let mode_val = mode.read().clone();
+                                            match mode_val {
+                                                CanvasMode::PlacePoint => {
+                                                    dragging_point_id.set(Some(pid));
+                                                    selected_item.set(SelectedItem::Point(pid));
+                                                }
+                                                CanvasMode::AwaitingLineStart => {
+                                                    mode.set(CanvasMode::AwaitingLineEnd { first_point_id: pid });
+                                                }
+                                                CanvasMode::AwaitingLineEnd { first_point_id } => {
+                                                    if first_point_id != pid {
+                                                        let lid = *next_id.read();
+                                                        let line_name = format!("L{}", lid);
+                                                        lines.write().push(VLine::new(lid, &line_name, first_point_id, pid));
+                                                        next_id.set(lid + 1);
                                                     }
-                                                    CanvasMode::AwaitingLineEnd { first_point_id } => {
-                                                        if first_point_id != pid {
-                                                            let lid = *next_id.read();
-                                                            let line_name = format!("L{}", lid);
-                                                            lines.write().push(VLine::new(lid, &line_name, first_point_id, pid));
-                                                            next_id.set(lid + 1);
-                                                        }
-                                                        mode.set(CanvasMode::AwaitingLineStart);
+                                                    mode.set(CanvasMode::AwaitingLineStart);
+                                                }
+                                                CanvasMode::BezierStart => {
+                                                    mode.set(CanvasMode::BezierControl1 { p1: pid });
+                                                }
+                                                CanvasMode::BezierControl1 { p1 } => {
+                                                    mode.set(CanvasMode::BezierControl2 { p1, p2: pid });
+                                                }
+                                                CanvasMode::BezierControl2 { p1, p2 } => {
+                                                    mode.set(CanvasMode::BezierEnd { p1, p2, p3: pid });
+                                                }
+                                                CanvasMode::BezierEnd { p1, p2, p3 } => {
+                                                    if pid != p1 && pid != p2 && pid != p3 {
+                                                        let sid = *next_id.read();
+                                                        let spline_name = format!("S{}", sid);
+                                                        splines.write().push(VCubicBezier::new(sid, &spline_name, p1, p2, p3, pid));
+                                                        next_id.set(sid + 1);
                                                     }
-                                                    CanvasMode::BezierStart => {
-                                                        mode.set(CanvasMode::BezierControl1 { p1: pid });
+                                                    mode.set(CanvasMode::BezierStart);
+                                                }
+                                                // منطق المنصف
+                                                CanvasMode::BisectorStart => {
+                                                    mode.set(CanvasMode::BisectorVertex { p1: pid });
+                                                }
+                                                CanvasMode::BisectorVertex { p1 } => {
+                                                    mode.set(CanvasMode::BisectorEnd { p1, vertex: pid });
+                                                }
+                                                CanvasMode::BisectorEnd { p1, vertex } => {
+                                                    if pid != p1 && pid != vertex {
+                                                        let bid = *next_id.read();
+                                                        let bis_name = format!("B{}", bid);
+                                                        bisectors.write().push(VBisector::new(bid, &bis_name, p1, vertex, pid, 150.0));
+                                                        next_id.set(bid + 1);
                                                     }
-                                                    CanvasMode::BezierControl1 { p1 } => {
-                                                        mode.set(CanvasMode::BezierControl2 { p1, p2: pid });
-                                                    }
-                                                    CanvasMode::BezierControl2 { p1, p2 } => {
-                                                        mode.set(CanvasMode::BezierEnd { p1, p2, p3: pid });
-                                                    }
-                                                    CanvasMode::BezierEnd { p1, p2, p3 } => {
-                                                        if pid != p1 && pid != p2 && pid != p3 {
-                                                            let sid = *next_id.read();
-                                                            let spline_name = format!("S{}", sid);
-                                                            splines.write().push(VCubicBezier::new(sid, &spline_name, p1, p2, p3, pid));
-                                                            next_id.set(sid + 1);
-                                                        }
-                                                        mode.set(CanvasMode::BezierStart);
-                                                    }
-                                                    _ => {}
+                                                    mode.set(CanvasMode::BisectorStart);
                                                 }
                                             }
                                         }

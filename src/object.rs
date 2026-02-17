@@ -2,6 +2,14 @@ use crate::types::{GOType, DrawMode};
 use crate::geometry::Point2D;
 use serde::{Serialize, Deserialize};
 
+#[derive(Clone, PartialEq, Debug)]
+pub enum SelectedItem {
+    None,
+    Point(u32),
+    Line(u32),
+    Spline(u32),
+}
+
 /// البيانات المشتركة لكل كائنات Valentina
 /// بدلاً من الوراثة (Inheritance)، هنستخدم التركيب (Composition)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,16 +69,12 @@ impl VLine {
     /// حساب طول الخط بناءً على إحداثيات النقاط المرتبطة به.
     /// ملاحظة: بما أن الخط يخزن المعرفات فقط، يجب تمرير مراجع للنقاط من الخارج.
     pub fn length(&self, start_p: &VPoint, end_p: &VPoint) -> f64 {
-        let dx = end_p.x() - start_p.x();
-        let dy = end_p.y() - start_p.y();
-        (dx * dx + dy * dy).sqrt()
+        start_p.coords.distance_to(&end_p.coords)
     }
 
     /// حساب زاوية الخط بالدرجات (Degrees).
     pub fn angle(&self, start_p: &VPoint, end_p: &VPoint) -> f64 {
-        let dx = end_p.x() - start_p.x();
-        let dy = end_p.y() - start_p.y();
-        dy.atan2(dx).to_degrees()
+        start_p.coords.angle_to(&end_p.coords)
     }
 }
 
@@ -92,5 +96,45 @@ impl VCubicBezier {
             p3_id: p3,
             p4_id: p4,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VBisector {
+    pub metadata: VGObject,
+    pub p1_id: u32,
+    pub vertex_id: u32,
+    pub p3_id: u32,
+    pub length: f64,
+}
+
+impl VBisector {
+    pub fn new(id: u32, name: &str, p1: u32, vertex: u32, p3: u32, length: f64) -> Self {
+        Self {
+            metadata: VGObject::new(id, name, crate::types::GOType::Line), // تظهر كخط
+            p1_id: p1,
+            vertex_id: vertex,
+            p3_id: p3,
+            length,
+        }
+    }
+
+    /// حساب إحداثيات النقطة النهائية للمنصف
+    pub fn calculate_end_point(&self, p1: &VPoint, vertex: &VPoint, p3: &VPoint) -> Point2D {
+        let ang1 = vertex.coords.angle_to(&p1.coords);
+        let ang2 = vertex.coords.angle_to(&p3.coords);
+        
+        let mut diff = ang2 - ang1;
+        while diff < 0.0 { diff += 360.0; }
+        while diff >= 360.0 { diff -= 360.0; }
+        
+        let bisector_angle = if diff > 180.0 {
+            let actual_angle = 360.0 - diff;
+            ang1 - actual_angle / 2.0
+        } else {
+            ang1 + diff / 2.0
+        };
+        
+        vertex.coords.point_at(self.length, bisector_angle)
     }
 }

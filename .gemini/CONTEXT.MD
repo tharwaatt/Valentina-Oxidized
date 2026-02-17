@@ -17,16 +17,16 @@ A modern, Rust-based CAD tool for fashion pattern making. Built for performance 
 - **Stage 1 (Foundation)**: Mathematical primitives (Point2D). [Status: DONE]
 - **Stage 2 (Canvas)**: Dioxus Integration & Interactive Point creation. [Status: DONE]
 - **Stage 3 (Relationships)**: Connecting entities via Lines and Curves. [Status: IN_PROGRESS]
-  - Task 3.1 - 3.7: Completed.
-  - Task 3.8: Advanced Geometric Tools. (Current)
+  - Task 3.1 - 3.8: Completed (Lines, Splines, Selection, Labels, Delete, Save/Load, Drag, Bisector).
+  - Task 3.9: Path Consolidation. (Current)
   - Milestone 3 Goal: Stable Geometric Graph Editor.
 
 ## 🛑 Lessons Learned (Memory for Agent)
 - **Coordinate Normalization**: SVG `viewBox` requires a `CoordMapper` to translate CSS pixels to user-space units accurately.
 - **Dioxus 0.7 Signals**: Use `Snapshotting` (clone before render) to avoid deadlocks when mixing read and write access in the UI loop.
 - **Reactive Drag & Drop**: Using ID-based linking allows for seamless dragging; updating a point's coordinates automatically re-renders all dependent lines/splines.
-- **Event Management**: Combine `onmousedown` on elements with `onmousemove`/`onmouseup` on the container for the most stable drag experience.
+- **Advanced Geometry**: Porting original C++ logic (like BisectorAngle) requires careful handling of polar coordinate systems and angle normalization (0-360).
 
-## 🎯 Next Objective: Advanced Geometry & Measurement
-1. Geometry Engine expansion: Implementing tools for angles, intersections, and bisectors by porting original Valentina C++ logic.
-2. Live Measurement Overlay: Displaying lengths and angles directly on the canvas during interaction.
+## 🎯 Next Objective: Shape Logic & Measurements
+1. Path Consolidation: Logic to group lines and splines into a single "Path" entity for pattern pieces.
+2. Dynamic Overlays: Real-time SVG labels showing lengths and angles next to active lines.

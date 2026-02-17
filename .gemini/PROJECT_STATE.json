@@ -1,37 +1,39 @@
 {
   "project_name": "Valentina-Oxidized",
-  "status": "Day 5 - Lines System Implemented",
+  "status": "Stage 3 - Advanced Geometry System Implemented",
   "environment": {
     "os": "Linux",
     "compiler": "rustc",
-    "frontend": "Dioxus 0.6 (Desktop/SVG)"
+    "frontend": "Dioxus 0.7.3 (Desktop/SVG/Document)"
   },
   "architecture": {
     "data_model": "Compositional (Identity + Math)",
-    "state_management": "Dioxus Signals (Reactive)",
+    "state_management": "Dioxus Signals (Reactive with Snapshots)",
     "linking_strategy": "ID-based (u32)"
   },
   "file_map": {
-    "src/main.rs": "Contains App logic and SVG interaction. Manages Points and Lines signals.",
-    "src/object.rs": "Defines VGObject, VPoint, and VLine. VLine now supports length/angle calculations.",
-    "src/geometry.rs": "Mathematical primitives (Point2D).",
-    "src/types.rs": "System-wide enums (GOType, DrawMode)."
+    "src/main.rs": "Main App loop, Interaction State Machine, SVG Rendering.",
+    "src/object.rs": "Geometric entities (VPoint, VLine, VCubicBezier, VBisector).",
+    "src/geometry.rs": "Mathematical engine (Point2D math).",
+    "src/canvas_coords.rs": "Screen-to-SVG coordinate transformation.",
+    "src/types.rs": "System-enums (GOType, DrawMode)."
   },
   "current_features": [
     "High-precision Point creation with Coordinate Mapping",
     "SVG Grid background with dynamic resizing support",
     "Interactive Cubic Bezier Splines (4-point selection)",
+    "Angle Bisector Tool (3-point selection) with automatic angle calculation",
     "Global Selection System (Points, Lines, Splines) with visual feedback",
     "Interactive Drag & Drop for Points with real-time dependency updates",
     "CSS interaction layer (Hover effects, Selection glow, Grab cursors)",
     "SVG Text Labels (P1, P2...) for points",
     "Cascading Deletion Logic (Cleaning dependencies on delete)",
     "Native Project Persistence (Save/Load via Native File Dialogs)",
-    "Robust State-Machine for interaction (Points/Lines/Splines)",
+    "Robust State-Machine for interaction (Points/Lines/Splines/Bisectors)",
     "Deadlock-free state management using Signal Snapshots"
   ],
   "todo_stage_3": [
-    "Task 3.8: Advanced Geometric Tools (Angle, Bisector)",
-    "Task 3.9: Path Consolidation (Creating closed shapes from entities)"
+    "Task 3.9: Path Consolidation (Creating closed shapes from entities)",
+    "Task 3.10: Dynamic Measurement Overlays (Live labels for length/angle)"
   ]
 }
