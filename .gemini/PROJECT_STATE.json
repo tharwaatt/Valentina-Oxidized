@@ -1,6 +1,6 @@
 {
   "project_name": "Valentina-Oxidized",
-  "status": "Ready for Day 5",
+  "status": "Day 5 - Lines System Implemented",
   "environment": {
     "os": "Linux",
     "compiler": "rustc",
@@ -12,20 +12,22 @@
     "linking_strategy": "ID-based (u32)"
   },
   "file_map": {
-    "src/main.rs": "Contains App logic and SVG interaction. Currently holds Signal<Vec<VPoint>>.",
-    "src/object.rs": "Defines VGObject and VPoint. VLine is the next to be added.",
+    "src/main.rs": "Contains App logic and SVG interaction. Manages Points and Lines signals.",
+    "src/object.rs": "Defines VGObject, VPoint, and VLine. VLine now supports length/angle calculations.",
     "src/geometry.rs": "Mathematical primitives (Point2D).",
     "src/types.rs": "System-wide enums (GOType, DrawMode)."
   },
   "current_features": [
-    "Infinite point creation on click",
-    "SVG Grid background",
-    "Real-time coordinate display in sidebar",
-    "Proper Linux system library linking"
+    "High-precision Point creation with Coordinate Mapping",
+    "SVG Grid background with dynamic resizing support",
+    "Live Length and Angle calculations in Sidebar",
+    "Robust State-Machine for Interaction (Place Point / Draw Line modes)",
+    "Deadlock-free state management using Signal Snapshots",
+    "External Reference: Valentina C++ source code integrated (valentina-codes/)"
   ],
-  "todo_day_5": [
-    "Add VLine struct to object.rs",
-    "Implement 'Selection Mode' to pick start and end points",
-    "Draw SVG lines connecting points by ID"
+  "todo_stage_3": [
+    "Task 3.2: Implement Bezier Curves (Splines) - Researching original vgeometry/vabstractbezier.h",
+    "Task 3.3: Visual selection highlight (CSS classes on SVG)",
+    "Task 3.4: Labels for Points (SVG Text)"
   ]
 }

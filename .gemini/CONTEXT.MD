@@ -5,39 +5,25 @@ A modern, Rust-based CAD tool for fashion pattern making. Built for performance 
 
 ## 🛠 Tech Stack (Established)
 - **Rust Stable**: Core logic.
-- **Dioxus 0.6+**: Desktop GUI with SVG support.
+- **Dioxus 0.7+**: Desktop GUI with SVG support.
 - **SVG**: For vector-perfect geometric drawing.
-- **Target OS**: Linux (Ubuntu/Debian environment).
+- **Target OS**: Linux (Ubuntu environment).
 
-## 📅 Roadmap: Completed Milestones
-
-### [Day 1] Foundation
-- Project scaffolding and dependency setup.
-
-### [Day 2] Geometry Engine (`src/geometry.rs`)
-- Implemented `Point2D` with mathematical methods (e.g., `rotate`).
-- Ensured coordinate logic is separate from UI.
-
-### [Day 3] Identity & Objects (`src/object.rs`)
-- Created `VGObject` for metadata (ID, String Name).
-- Created `VPoint` (Composition of Identity + Geometry).
-- Established the "Ownership" principle (using `String` for metadata).
-
-### [Day 4] Interactive Canvas (CURRENT STATE)
-- **GUI Boot**: Successfully launched Dioxus Desktop.
-- **System Fixes**: Resolved Linux linker issues (`libxdo-dev`, `libwebkit2gtk-4.1-dev`).
-- **Interactive SVG**:
-    - Implemented a coordinate grid (50px pattern).
-    - Mouse Click Logic: Adding `VPoint` objects to a central `Vec<VPoint>` signal on click.
-    - Dynamic Rendering: SVG circles and text labels update automatically via Dioxus Signals.
+## 📍 Roadmap Evolution: Stages
+- **Stage 1 (Foundation)**: Mathematical primitives (Point2D). [Status: DONE]
+- **Stage 2 (Canvas)**: Dioxus Integration & Interactive Point creation. [Status: DONE]
+- **Stage 3 (Relationships)**: Connecting entities via Lines and Angles. [Status: IN_PROGRESS]
+  - Task 3.1: Define VLine & ID-based linking. (Completed)
+  - Task 3.2: Implement Length/Angle calculations. (Completed)
+  - Task 3.3: Visual feedback for selected points. (Completed)
 
 ## 🛑 Lessons Learned (Memory for Agent)
-- **No Raw References**: We use IDs (u32) to link objects to avoid Borrow Checker hell.
-- **Snake Case**: Dioxus SVG attributes must be `snake_case` (e.g., `stroke_width`).
-- **Event Handling**: Use `stop_propagation()` to prevent event bubbling from points to the background canvas.
+- **ID-Based Ownership**: In CAD tools, decoupling geometry from topology via IDs is essential for the Rust borrow checker.
+- **Math on the Fly**: Calculating properties (length, angle) in the UI loop should pass point references to the line methods.
+- **Dioxus Interaction**: Selection modes are best managed via signals representing "optional IDs".
 
-## 🎯 Next Objective: Day 5 - Relationships (Lines)
-The project is now a "point cloud" generator. Day 5 will focus on:
-1. Defining the `VLine` struct in `object.rs`.
-2. Implementing logic to select two points and connect them.
-3. Calculating line properties (length, angle) from the mathematical model.
+## 🎯 Next Objective: Day 6 - Interaction & Deletion
+With lines in place, the next step is:
+1. Enabling "Delete" for points and lines (and handling the fallout).
+2. SVG text labels to identify points (P1, P2) in the canvas.
+3. Adding CSS transitions for a smoother CAD experience.
