@@ -112,9 +112,50 @@ fn App() -> Element {
                     h3 { "Selection" }
                     match current_selection {
                         SelectedItem::None => rsx! { p { "Nothing selected" } },
-                        SelectedItem::Point(id) => rsx! { p { "Selected Point: P{id}" } },
-                        SelectedItem::Line(id) => rsx! { p { "Selected Line: L{id}" } },
-                        SelectedItem::Spline(id) => rsx! { p { "Selected Spline: S{id}" } },
+                        SelectedItem::Point(id) => rsx! { 
+                            div {
+                                p { "Selected Point: P{id}" }
+                                button { 
+                                    class: "delete-btn",
+                                    onclick: move |_| {
+                                        // حذف النقطة
+                                        points.write().retain(|p| p.metadata.id != id);
+                                        // حذف الخطوط المرتبطة (Cascading)
+                                        lines.write().retain(|l| l.start_point_id != id && l.end_point_id != id);
+                                        // حذف المنحنيات المرتبطة
+                                        splines.write().retain(|s| s.p1_id != id && s.p2_id != id && s.p3_id != id && s.p4_id != id);
+                                        selected_item.set(SelectedItem::None);
+                                    },
+                                    "🗑 Delete Point"
+                                }
+                            }
+                        },
+                        SelectedItem::Line(id) => rsx! { 
+                            div {
+                                p { "Selected Line: L{id}" }
+                                button { 
+                                    class: "delete-btn",
+                                    onclick: move |_| {
+                                        lines.write().retain(|l| l.metadata.id != id);
+                                        selected_item.set(SelectedItem::None);
+                                    },
+                                    "🗑 Delete Line"
+                                }
+                            }
+                        },
+                        SelectedItem::Spline(id) => rsx! { 
+                            div {
+                                p { "Selected Spline: S{id}" }
+                                button { 
+                                    class: "delete-btn",
+                                    onclick: move |_| {
+                                        splines.write().retain(|s| s.metadata.id != id);
+                                        selected_item.set(SelectedItem::None);
+                                    },
+                                    "🗑 Delete Spline"
+                                }
+                            }
+                        },
                     }
                 }
 
