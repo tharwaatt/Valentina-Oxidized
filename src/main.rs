@@ -8,6 +8,8 @@ mod canvas_coords;
 use object::{VPoint, VLine, VCubicBezier};
 use canvas_coords::{CoordMapper, SvgViewBox, AspectRatioMode};
 use serde_json::Value;
+use serde::{Serialize, Deserialize};
+use std::fs;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum SelectedItem {
@@ -27,6 +29,14 @@ pub enum CanvasMode {
     BezierControl1 { p1: u32 },
     BezierControl2 { p1: u32, p2: u32 },
     BezierEnd { p1: u32, p2: u32, p3: u32 },
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ProjectData {
+    pub points: Vec<VPoint>,
+    pub lines: Vec<VLine>,
+    pub splines: Vec<VCubicBezier>,
+    pub next_id: u32,
 }
 
 fn main() {
@@ -118,11 +128,8 @@ fn App() -> Element {
                                 button { 
                                     class: "delete-btn",
                                     onclick: move |_| {
-                                        // حذف النقطة
                                         points.write().retain(|p| p.metadata.id != id);
-                                        // حذف الخطوط المرتبطة (Cascading)
                                         lines.write().retain(|l| l.start_point_id != id && l.end_point_id != id);
-                                        // حذف المنحنيات المرتبطة
                                         splines.write().retain(|s| s.p1_id != id && s.p2_id != id && s.p3_id != id && s.p4_id != id);
                                         selected_item.set(SelectedItem::None);
                                     },
@@ -156,6 +163,60 @@ fn App() -> Element {
                                 }
                             }
                         },
+                    }
+                }
+
+                div { class: "control-box",
+                    h3 { "Project" }
+                    button { 
+                        class: "action-btn",
+                        onclick: move |_| {
+                            let pts = points.read().clone();
+                            let lns = lines.read().clone();
+                            let spls = splines.read().clone();
+                            let nid = *next_id.read();
+                            
+                            spawn(async move {
+                                if let Some(path) = rfd::AsyncFileDialog::new()
+                                    .set_file_name("project.json")
+                                    .add_filter("JSON", &["json"])
+                                    .save_file()
+                                    .await {
+                                        let data = ProjectData {
+                                            points: pts,
+                                            lines: lns,
+                                            splines: spls,
+                                            next_id: nid,
+                                        };
+                                        if let Ok(json) = serde_json::to_string_pretty(&data) {
+                                            let _ = fs::write(path.path(), json);
+                                        }
+                                }
+                            });
+                        },
+                        "💾 Save"
+                    }
+                    button { 
+                        class: "action-btn",
+                        onclick: move |_| {
+                            spawn(async move {
+                                if let Some(path) = rfd::AsyncFileDialog::new()
+                                    .add_filter("JSON", &["json"])
+                                    .pick_file()
+                                    .await {
+                                        if let Ok(json) = fs::read_to_string(path.path()) {
+                                            if let Ok(data) = serde_json::from_str::<ProjectData>(&json) {
+                                                points.set(data.points);
+                                                lines.set(data.lines);
+                                                splines.set(data.splines);
+                                                next_id.set(data.next_id);
+                                                selected_item.set(SelectedItem::None);
+                                            }
+                                        }
+                                }
+                            });
+                        },
+                        "📂 Load"
                     }
                 }
 

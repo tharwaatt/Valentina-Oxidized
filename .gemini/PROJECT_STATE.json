@@ -25,12 +25,12 @@
     "CSS interaction layer (Hover effects, Selection glow)",
     "SVG Text Labels (P1, P2...) for points",
     "Cascading Deletion Logic (Cleaning dependencies on delete)",
+    "Native Project Persistence (Save/Load via Native File Dialogs)",
     "Robust State-Machine for interaction (Points/Lines/Splines)",
-    "Deadlock-free state management using Signal Snapshots",
-    "External Reference: Valentina C++ source code integrated (valentina-codes/)"
+    "Deadlock-free state management using Signal Snapshots"
   ],
   "todo_stage_3": [
-    "Task 3.6: Project persistence (JSON Export/Import)",
-    "Task 3.7: Interactive Point Transformation (Drag & Drop)"
+    "Task 3.7: Interactive Point Transformation (Drag & Drop)",
+    "Task 3.8: Advanced Geometric Tools (Angle, Bisector)"
   ]
 }

@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
+
 /// GOType: Geometric Object Type
 /// ده اللي بيعرف الـ AI أو البرنامج إحنا بنرسم إيه
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GOType {
     Point,
     Line,
@@ -10,7 +12,7 @@ pub enum GOType {
 }
 
 /// Draw Mode: هل الكائن ده للحسابات فقط أم للرسم النهائي؟
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DrawMode {
     Calculation,  // للحسابات فقط (مش هيظهر للمستخدم)
     Modeling,     // للرسم النهائي (اللي المستخدم هيشوفه)

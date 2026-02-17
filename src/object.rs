@@ -1,9 +1,10 @@
 use crate::types::{GOType, DrawMode};
 use crate::geometry::Point2D;
+use serde::{Serialize, Deserialize};
 
 /// البيانات المشتركة لكل كائنات Valentina
 /// بدلاً من الوراثة (Inheritance)، هنستخدم التركيب (Composition)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VGObject {
     pub id: u32,
     pub name: String,
@@ -22,7 +23,7 @@ impl VGObject {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VPoint {
     pub metadata: VGObject, // الهوية
     pub coords: Point2D,    // الحسابات
@@ -41,7 +42,7 @@ impl VPoint {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VLine {
     pub metadata: VGObject,
     pub start_point_id: u32,
@@ -73,8 +74,7 @@ impl VLine {
     }
 }
 
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VCubicBezier {
     pub metadata: VGObject,
     pub p1_id: u32, // Start

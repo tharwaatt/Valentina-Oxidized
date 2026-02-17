@@ -1,0 +1,89 @@
+{
+  "points": [
+    {
+      "metadata": {
+        "id": 1,
+        "name": "P1",
+        "obj_type": "Point",
+        "mode": "Modeling"
+      },
+      "coords": {
+        "x": 288.92371995820275,
+        "y": 350.05224660397073
+      }
+    },
+    {
+      "metadata": {
+        "id": 2,
+        "name": "P2",
+        "obj_type": "Point",
+        "mode": "Modeling"
+      },
+      "coords": {
+        "x": 737.1995820271683,
+        "y": 350.05224660397073
+      }
+    },
+    {
+      "metadata": {
+        "id": 3,
+        "name": "P3",
+        "obj_type": "Point",
+        "mode": "Modeling"
+      },
+      "coords": {
+        "x": 590.9090909090909,
+        "y": 597.7011494252873
+      }
+    },
+    {
+      "metadata": {
+        "id": 4,
+        "name": "P4",
+        "obj_type": "Point",
+        "mode": "Modeling"
+      },
+      "coords": {
+        "x": 419.5402298850575,
+        "y": 601.8808777429467
+      }
+    }
+  ],
+  "lines": [
+    {
+      "metadata": {
+        "id": 6,
+        "name": "L6",
+        "obj_type": "Line",
+        "mode": "Modeling"
+      },
+      "start_point_id": 1,
+      "end_point_id": 4
+    },
+    {
+      "metadata": {
+        "id": 7,
+        "name": "L7",
+        "obj_type": "Line",
+        "mode": "Modeling"
+      },
+      "start_point_id": 3,
+      "end_point_id": 2
+    }
+  ],
+  "splines": [
+    {
+      "metadata": {
+        "id": 5,
+        "name": "S5",
+        "obj_type": "Spline",
+        "mode": "Modeling"
+      },
+      "p1_id": 1,
+      "p2_id": 4,
+      "p3_id": 3,
+      "p4_id": 2
+    }
+  ],
+  "next_id": 8
+}

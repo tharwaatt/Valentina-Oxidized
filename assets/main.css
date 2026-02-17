@@ -94,6 +94,98 @@ circle.selected {
 
 .delete-btn:hover {
 
+
+
     background: #c0392b;
 
+
+
 }
+
+
+
+
+
+
+
+.action-btn {
+
+
+
+    background: #2980b9;
+
+
+
+    color: white;
+
+
+
+    border: none;
+
+
+
+    padding: 8px 15px;
+
+
+
+    border-radius: 4px;
+
+
+
+    cursor: pointer;
+
+
+
+    width: 48%;
+
+
+
+    margin-top: 10px;
+
+
+
+    font-weight: bold;
+
+
+
+    transition: background 0.2s;
+
+
+
+}
+
+
+
+
+
+
+
+.action-btn:first-of-type {
+
+
+
+    margin-right: 4%;
+
+
+
+}
+
+
+
+
+
+
+
+.action-btn:hover {
+
+
+
+    background: #3498db;
+
+
+
+}
+
+
+
+
