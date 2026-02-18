@@ -5,7 +5,8 @@ mod geometry;
 mod object;
 mod canvas_coords;
 
-use object::{VPoint, VLine, VCubicBezier, VBisector, VContour, SelectedItem, EntityRef};
+use object::{VPoint, VLine, VCubicBezier, VBisector, VArc, VContour, SelectedItem, EntityRef};
+use geometry::Point2D;
 use canvas_coords::{CoordMapper, SvgViewBox, AspectRatioMode};
 use serde_json::Value;
 use serde::{Serialize, Deserialize};
@@ -25,6 +26,11 @@ pub enum CanvasMode {
     BisectorStart,
     BisectorVertex { p1: u32 },
     BisectorEnd { p1: u32, vertex: u32 },
+    // مراحل القوس الدائري (Arc)
+    ArcCenter,                                    // اختيار نقطة المركز
+    ArcRadius { center_id: u32, center_x: f64, center_y: f64 }, // تحديد نصف القطر
+    ArcStartAngle { center_id: u32, center_x: f64, center_y: f64, radius: f64, start_angle: f64 }, // تحديد زاوية البداية
+    ArcEndAngle { center_id: u32, center_x: f64, center_y: f64, radius: f64, start_angle: f64 }, // تحديد زاوية النهاية
     // مرحلة إنشاء الكونتور (المسار)
     ContourCreation { active_contour_id: u32 },
 }
@@ -35,6 +41,7 @@ pub struct ProjectData {
     pub lines: Vec<VLine>,
     pub splines: Vec<VCubicBezier>,
     pub bisectors: Vec<VBisector>,
+    pub arcs: Vec<VArc>,
     pub contours: Vec<VContour>,
     pub next_id: u32,
 }
@@ -49,6 +56,7 @@ fn App() -> Element {
     let mut lines = use_signal(|| Vec::<VLine>::new());
     let mut splines = use_signal(|| Vec::<VCubicBezier>::new());
     let mut bisectors = use_signal(|| Vec::<VBisector>::new());
+    let mut arcs = use_signal(|| Vec::<VArc>::new());
     let mut contours = use_signal(|| Vec::<VContour>::new());
     let mut mode = use_signal(|| CanvasMode::PlacePoint);
     let mut selected_item = use_signal(|| SelectedItem::None);
@@ -83,6 +91,7 @@ fn App() -> Element {
     let lns_snapshot = lines.read().clone();
     let spl_snapshot = splines.read().clone();
     let bis_snapshot = bisectors.read().clone();
+    let arc_snapshot = arcs.read().clone();
     let cnt_snapshot = contours.read().clone();
     let current_mode = mode.read().clone();
     let current_selection = selected_item.read().clone();
@@ -98,6 +107,10 @@ fn App() -> Element {
         CanvasMode::BisectorStart => "Bisector: Select first point",
         CanvasMode::BisectorVertex { .. } => "Bisector: Select vertex (corner)",
         CanvasMode::BisectorEnd { .. } => "Bisector: Select third point",
+        CanvasMode::ArcCenter => "Arc: Select Center Point",
+        CanvasMode::ArcRadius { .. } => "Arc: Click to set Radius",
+        CanvasMode::ArcStartAngle { .. } => "Arc: Click to set Start Angle",
+        CanvasMode::ArcEndAngle { .. } => "Arc: Click to set End Angle",
         CanvasMode::ContourCreation { .. } => "Contour: Select lines/splines to group",
     };
 
@@ -132,6 +145,11 @@ fn App() -> Element {
                         "📐 Bis"
                     }
                     button {
+                        class: if matches!(current_mode, CanvasMode::ArcCenter | CanvasMode::ArcRadius { .. } | CanvasMode::ArcStartAngle { .. } | CanvasMode::ArcEndAngle { .. }) { "active" } else { "" },
+                        onclick: move |_| mode.set(CanvasMode::ArcCenter),
+                        "⌒ Arc"
+                    }
+                    button {
                         class: if matches!(current_mode, CanvasMode::ContourCreation { .. }) { "active" } else { "" },
                         onclick: move |_| {
                             let new_cid = *next_id.read();
@@ -160,6 +178,7 @@ fn App() -> Element {
                                         lines.write().retain(|l| l.start_point_id != id && l.end_point_id != id);
                                         splines.write().retain(|s| s.p1_id != id && s.p2_id != id && s.p3_id != id && s.p4_id != id);
                                         bisectors.write().retain(|b| b.p1_id != id && b.vertex_id != id && b.p3_id != id);
+                                        arcs.write().retain(|a| a.center_id != id);
                                         selected_item.set(SelectedItem::None);
                                     },
                                     "🗑 Delete"
@@ -205,6 +224,22 @@ fn App() -> Element {
                                 }
                             }
                         },
+                        SelectedItem::Arc(id) => rsx! { 
+                            div {
+                                p { "Selected Arc: A{id}" }
+                                if let Some(a) = arc_snapshot.iter().find(|a| a.metadata.id == id) {
+                                    p { class: "stats", "Radius: {a.radius:.1}, Angles: {a.start_angle:.1}° - {a.end_angle:.1}°" }
+                                }
+                                button { 
+                                    class: "delete-btn",
+                                    onclick: move |_| {
+                                        arcs.write().retain(|a| a.metadata.id != id);
+                                        selected_item.set(SelectedItem::None);
+                                    },
+                                    "🗑 Delete"
+                                }
+                            }
+                        },
                         SelectedItem::Contour(id) => rsx! { 
                             div {
                                 p { "Selected Path: {id}" }
@@ -233,6 +268,7 @@ fn App() -> Element {
                             let lns = lines.read().clone();
                             let spls = splines.read().clone();
                             let bis = bisectors.read().clone();
+                            let ars = arcs.read().clone();
                             let cnts = contours.read().clone();
                             let nid = *next_id.read();
                             
@@ -247,6 +283,7 @@ fn App() -> Element {
                                             lines: lns,
                                             splines: spls,
                                             bisectors: bis,
+                                            arcs: ars,
                                             contours: cnts,
                                             next_id: nid,
                                         };
@@ -272,6 +309,7 @@ fn App() -> Element {
                                                 lines.set(data.lines);
                                                 splines.set(data.splines);
                                                 bisectors.set(data.bisectors);
+                                                arcs.set(data.arcs);
                                                 contours.set(data.contours);
                                                 next_id.set(data.next_id);
                                                 selected_item.set(SelectedItem::None);
@@ -289,6 +327,7 @@ fn App() -> Element {
                     li { "Points: {pts_snapshot.len()}" }
                     li { "Lines: {lns_snapshot.len() + bis_snapshot.len()}" }
                     li { "Splines: {spl_snapshot.len()}" }
+                    li { "Arcs: {arc_snapshot.len()}" }
                     li { "Paths: {cnt_snapshot.len()}" }
                 }
             }
@@ -329,20 +368,54 @@ fn App() -> Element {
                     rect {
                         width: "100%", height: "100%", fill: "url(#grid)",
                         onmousedown: move |evt| {
-                            if *mode.read() == CanvasMode::PlacePoint {
-                                let coords = evt.element_coordinates();
-                                let (elem_w, elem_h) = *svg_elem_size.read();
-                                let mapper = CoordMapper {
-                                    viewbox: SvgViewBox { min_x: 0.0, min_y: 0.0, width: 1000.0, height: 1000.0 },
-                                    preserve_aspect_ratio: AspectRatioMode::Meet,
-                                };
-                                let (svg_x, svg_y) = mapper.to_svg_space(coords.x, coords.y, elem_w, elem_h);
-                                
-                                let id = *next_id.read();
-                                points.write().push(VPoint::new(id, &format!("P{}", id), svg_x, svg_y));
-                                next_id.set(id + 1);
+                            let coords = evt.element_coordinates();
+                            let (elem_w, elem_h) = *svg_elem_size.read();
+                            let mapper = CoordMapper {
+                                viewbox: SvgViewBox { min_x: 0.0, min_y: 0.0, width: 1000.0, height: 1000.0 },
+                                preserve_aspect_ratio: AspectRatioMode::Meet,
+                            };
+                            let (svg_x, svg_y) = mapper.to_svg_space(coords.x, coords.y, elem_w, elem_h);
+                            
+                            let current_m = mode.read().clone();
+                            match current_m {
+                                CanvasMode::PlacePoint => {
+                                    let id = *next_id.read();
+                                    points.write().push(VPoint::new(id, &format!("P{}", id), svg_x, svg_y));
+                                    next_id.set(id + 1);
+                                }
+                                CanvasMode::ArcRadius { center_id, center_x, center_y } => {
+                                    // تحديد نصف القطر من النقر على الخلفية
+                                    let click_pt = Point2D::new(svg_x, svg_y);
+                                    let center_pt = Point2D::new(center_x, center_y);
+                                    let radius = center_pt.distance_to(&click_pt);
+                                    let start_angle = center_pt.angle_to(&click_pt);
+                                    mode.set(CanvasMode::ArcStartAngle { center_id, center_x, center_y, radius, start_angle });
+                                }
+                                CanvasMode::ArcStartAngle { center_id, center_x, center_y, radius, .. } => {
+                                    // تحديد زاوية البداية من النقر
+                                    let click_pt = Point2D::new(svg_x, svg_y);
+                                    let center_pt = Point2D::new(center_x, center_y);
+                                    let start_angle = center_pt.angle_to(&click_pt);
+                                    mode.set(CanvasMode::ArcEndAngle { center_id, center_x, center_y, radius, start_angle });
+                                }
+                                CanvasMode::ArcEndAngle { center_id, center_x, center_y, radius, start_angle } => {
+                                    // تحديد زاوية النهاية وإنشاء القوس
+                                    let click_pt = Point2D::new(svg_x, svg_y);
+                                    let center_pt = Point2D::new(center_x, center_y);
+                                    let end_angle = center_pt.angle_to(&click_pt);
+                                    let aid = *next_id.read();
+                                    let arc_name = format!("A{}", aid);
+                                    arcs.write().push(VArc::new(aid, &arc_name, center_id, radius, start_angle, end_angle));
+                                    next_id.set(aid + 1);
+                                    mode.set(CanvasMode::ArcCenter);
+                                }
+                                _ => {}
                             }
-                            selected_item.set(SelectedItem::None);
+                            
+                            // Only clear selection if not in a special mode
+                            if !matches!(current_m, CanvasMode::ArcRadius { .. } | CanvasMode::ArcStartAngle { .. } | CanvasMode::ArcEndAngle { .. }) {
+                                selected_item.set(SelectedItem::None);
+                            }
                         }
                     }
 
@@ -456,6 +529,42 @@ fn App() -> Element {
                         }
                     }
 
+                    // رسم الأقواس (Arcs)
+                    for arc in arc_snapshot.iter() {
+                        {
+                            let aid = arc.metadata.id;
+                            let is_selected = matches!(current_selection, SelectedItem::Arc(id) if id == aid);
+                            let is_in_contour = cnt_snapshot.iter().any(|c| c.entities.contains(&EntityRef::Arc(aid)));
+                            
+                            // البحث عن نقطة المركز
+                            let center = pts_snapshot.iter().find(|p| p.metadata.id == arc.center_id);
+                            
+                            if let Some(c) = center {
+                                let d_path = arc.to_svg_path(c);
+                                rsx! {
+                                    path { 
+                                        key: "arc-{aid}",
+                                        class: if is_selected { "selected" } else { "" },
+                                        d: "{d_path}",
+                                        stroke: if is_in_contour { "#f39c12" } else { "#1abc9c" }, 
+                                        stroke_width: if is_in_contour { "5" } else { "3" },
+                                        fill: "none",
+                                        onmousedown: move |evt| {
+                                            evt.stop_propagation();
+                                            if let CanvasMode::ContourCreation { active_contour_id } = *mode.read() {
+                                                if let Some(c) = contours.write().iter_mut().find(|c| c.metadata.id == active_contour_id) {
+                                                    c.entities.push(EntityRef::Arc(aid));
+                                                }
+                                            } else {
+                                                selected_item.set(SelectedItem::Arc(aid));
+                                            }
+                                        }
+                                    }
+                                }
+                            } else { rsx! { "" } }
+                        }
+                    }
+
                     // رسم النقاط
                     for p in pts_snapshot.iter() {
                         {
@@ -471,6 +580,9 @@ fn App() -> Element {
                                 CanvasMode::BezierEnd { p1, p2, p3 } => *p1 == pid || *p2 == pid || *p3 == pid,
                                 CanvasMode::BisectorVertex { p1 } => *p1 == pid,
                                 CanvasMode::BisectorEnd { p1, vertex } => *p1 == pid || *vertex == pid,
+                                CanvasMode::ArcRadius { center_id, .. } => *center_id == pid,
+                                CanvasMode::ArcStartAngle { center_id, .. } => *center_id == pid,
+                                CanvasMode::ArcEndAngle { center_id, .. } => *center_id == pid,
                                 _ => false,
                             } || is_selected;
                             
@@ -542,6 +654,36 @@ fn App() -> Element {
                                                         next_id.set(bid + 1);
                                                     }
                                                     mode.set(CanvasMode::BisectorStart);
+                                                }
+                                                CanvasMode::ArcCenter => {
+                                                    // اختيار نقطة المركز للقوس
+                                                    mode.set(CanvasMode::ArcRadius { center_id: pid, center_x: px, center_y: py });
+                                                }
+                                                CanvasMode::ArcRadius { center_id, center_x, center_y } => {
+                                                    // تحديد نصف القطر من المسافة بين المركز والنقطة المختارة
+                                                    let center_pt = Point2D::new(center_x, center_y);
+                                                    let click_pt = Point2D::new(px, py);
+                                                    let radius = center_pt.distance_to(&click_pt);
+                                                    let start_angle = center_pt.angle_to(&click_pt);
+                                                    mode.set(CanvasMode::ArcStartAngle { center_id, center_x, center_y, radius, start_angle });
+                                                }
+                                                CanvasMode::ArcStartAngle { center_id, center_x, center_y, radius, .. } => {
+                                                    // تحديد زاوية البداية من موقع النقطة
+                                                    let center_pt = Point2D::new(center_x, center_y);
+                                                    let click_pt = Point2D::new(px, py);
+                                                    let start_angle = center_pt.angle_to(&click_pt);
+                                                    mode.set(CanvasMode::ArcEndAngle { center_id, center_x, center_y, radius, start_angle });
+                                                }
+                                                CanvasMode::ArcEndAngle { center_id, center_x, center_y, radius, start_angle } => {
+                                                    // تحديد زاوية النهاية وإنشاء القوس
+                                                    let center_pt = Point2D::new(center_x, center_y);
+                                                    let click_pt = Point2D::new(px, py);
+                                                    let end_angle = center_pt.angle_to(&click_pt);
+                                                    let aid = *next_id.read();
+                                                    let arc_name = format!("A{}", aid);
+                                                    arcs.write().push(VArc::new(aid, &arc_name, center_id, radius, start_angle, end_angle));
+                                                    next_id.set(aid + 1);
+                                                    mode.set(CanvasMode::ArcCenter);
                                                 }
                                                 CanvasMode::ContourCreation { .. } => {
                                                     selected_item.set(SelectedItem::Point(pid));
