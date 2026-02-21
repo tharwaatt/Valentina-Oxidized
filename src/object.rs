@@ -10,16 +10,19 @@ pub enum SelectedItem {
     Spline(u32),
     Bisector(u32),
     Arc(u32),
+    AlongLine(u32),
     Contour(u32),
 }
 
-/// يمثل نوع ومعرف أي كيان هندسي يمكن أن يكون جزءاً من مسار
+/// يمثل نوع ومعرف أي كيان هندسي يمكن أن يكون جزءاً من مسار أو عملية
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum EntityRef {
+    Point(u32),
     Line(u32),
     Spline(u32),
     Bisector(u32),
     Arc(u32),
+    AlongLine(u32),
 }
 
 /// البيانات المشتركة لكل كائنات Valentina
@@ -116,7 +119,7 @@ pub struct VBisector {
 impl VBisector {
     pub fn new(id: u32, name: &str, p1: u32, vertex: u32, p3: u32, length: f64) -> Self {
         Self {
-            metadata: VGObject::new(id, name, crate::types::GOType::Line),
+            metadata: VGObject::new(id, name, crate::types::GOType::Line), // تظهر كخط
             p1_id: p1,
             vertex_id: vertex,
             p3_id: p3,
@@ -139,31 +142,14 @@ impl VBisector {
     }
 }
 
-/// كونتور (مسار) يجمع عدة خطوط ومنحنيات ليشكل قطعة واحدة
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct VContour {
-    pub metadata: VGObject,
-    pub entities: Vec<EntityRef>,
-}
-
-impl VContour {
-    pub fn new(id: u32, name: &str) -> Self {
-        Self {
-            metadata: VGObject::new(id, name, crate::types::GOType::Spline), // نوع افتراضي للمسارات المعقدة
-            entities: Vec::new(),
-        }
-    }
-}
-
 /// قوس دائري - مرتبط بنقطة المركز بالمعرف
-/// VArc: Circular Arc referencing a center point by ID
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VArc {
     pub metadata: VGObject,
-    pub center_id: u32,        // معرف نقطة المركز
-    pub radius: f64,           // نصف القطر
-    pub start_angle: f64,      // زاوية البداية بالدرجات
-    pub end_angle: f64,        // زاوية النهاية بالدرجات
+    pub center_id: u32,
+    pub radius: f64,
+    pub start_angle: f64,
+    pub end_angle: f64,
 }
 
 impl VArc {
@@ -176,58 +162,86 @@ impl VArc {
             end_angle,
         }
     }
-
-    /// حساب نقطة البداية على القوس
-    /// Get start point on arc based on start_angle
     pub fn get_start_point(&self, center: &VPoint) -> Point2D {
         center.coords.point_at(self.radius, self.start_angle)
     }
-
-    /// حساب نقطة النهاية على القوس
-    /// Get end point on arc based on end_angle
     pub fn get_end_point(&self, center: &VPoint) -> Point2D {
         center.coords.point_at(self.radius, self.end_angle)
     }
-
-    /// حساب زاوية القوس (الفرق بين البداية والنهاية)
-    /// مع الحفاظ على الاتجاه (موجب = عكس عقارب الساعة، سالب = مع عقارب الساعة)
-    /// Calculate arc angle span, preserving direction
     pub fn arc_angle(&self) -> f64 {
         let mut angle = self.end_angle - self.start_angle;
-        // تطبيع الزاوية لتكون في النطاق (-180°, 180°]
         while angle > 180.0 { angle -= 360.0; }
         while angle <= -180.0 { angle += 360.0; }
         angle
     }
-
-    /// طول القوس (موجب دائماً)
-    /// Arc length (always positive)
-    pub fn length(&self) -> f64 {
-        self.radius * self.arc_angle().abs().to_radians()
-    }
-
-    /// توليد مسار SVG للأقواس باستخدام أمر A
-    /// Generate SVG path data using Arc command
-    /// SVG Arc: A rx ry x-axis-rotation large-arc-flag sweep-flag x y
     pub fn to_svg_path(&self, center: &VPoint) -> String {
         let start = self.get_start_point(center);
         let end = self.get_end_point(center);
-        
-        // BUG FIX: Use the raw angle difference to determine flags, not the normalized one.
         let angle_span = self.end_angle - self.start_angle;
-        
-        // large-arc-flag: 1 if the absolute span > 180°
         let large_arc_flag = if angle_span.abs() > 180.0 { 1 } else { 0 };
-        
-        // sweep-flag: 1 for counter-clockwise (positive angle span), 0 for clockwise (negative)
         let sweep_flag = if angle_span >= 0.0 { 1 } else { 0 };
-        
-        format!(
-            "M {} {} A {} {} 0 {} {} {} {}",
-            start.x, start.y,
-            self.radius, self.radius,
-            large_arc_flag, sweep_flag,
-            end.x, end.y
-        )
+        format!("M {} {} A {} {} 0 {} {} {} {}", start.x, start.y, self.radius, self.radius, large_arc_flag, sweep_flag, end.x, end.y)
+    }
+}
+
+/// كونتور (مسار) يجمع عدة خطوط ومنحنيات ليشكل قطعة واحدة
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VContour {
+    pub metadata: VGObject,
+    pub entities: Vec<EntityRef>,
+}
+
+impl VContour {
+    pub fn new(id: u32, name: &str) -> Self {
+        Self {
+            metadata: VGObject::new(id, name, crate::types::GOType::Spline),
+            entities: Vec::new(),
+        }
+    }
+}
+
+/// أداة "نقطة على خط" (Point Along Line)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VPointAlongLine {
+    pub metadata: VGObject,
+    pub p1_id: u32, // بداية الخط
+    pub p2_id: u32, // نهاية الخط (لتحديد الاتجاه)
+    pub distance: f64, // المسافة من p1 باتجاه p2
+}
+
+impl VPointAlongLine {
+    pub fn new(id: u32, name: &str, p1: u32, p2: u32, distance: f64) -> Self {
+        Self {
+            metadata: VGObject::new(id, name, crate::types::GOType::Point),
+            p1_id: p1,
+            p2_id: p2,
+            distance,
+        }
+    }
+
+    /// حساب إحداثيات النقطة التابعة
+    pub fn calculate_point(&self, p1: &VPoint, p2: &VPoint) -> Point2D {
+        let angle = p1.coords.angle_to(&p2.coords);
+        p1.coords.point_at(self.distance, angle)
+    }
+}
+
+/// يمثل قيد الانعكاس (Mirror Constraint)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VMirror {
+    pub metadata: VGObject,
+    pub source_entities: Vec<EntityRef>,
+    pub axis_p1_id: u32,
+    pub axis_p2_id: u32,
+}
+
+impl VMirror {
+    pub fn new(id: u32, name: &str, sources: Vec<EntityRef>, axis_p1: u32, axis_p2: u32) -> Self {
+        Self {
+            metadata: VGObject::new(id, name, crate::types::GOType::Line),
+            source_entities: sources,
+            axis_p1_id: axis_p1,
+            axis_p2_id: axis_p2,
+        }
     }
 }

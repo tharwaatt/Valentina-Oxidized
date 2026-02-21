@@ -1,40 +1,32 @@
 {
   "project_name": "Valentina-Oxidized",
-  "status": "Stage 3 - Path Consolidation Implemented",
+  "status": "Stage 4 - Advanced Tools & Absolute Precision Implemented",
   "environment": {
     "os": "Linux",
     "compiler": "rustc",
     "frontend": "Dioxus 0.7.3 (Desktop/SVG/Document)"
   },
   "architecture": {
-    "data_model": "Compositional (Identity + Math)",
-    "state_management": "Dioxus Signals (Reactive with Snapshots)",
-    "linking_strategy": "ID-based (u32)"
+    "data_model": "Constraint-based (Mirroring & Generative Points)",
+    "state_management": "Dioxus Signals (Async Events with direct access)",
+    "coordinate_mapping": "JS-driven (getScreenCTM for 100% precision)"
   },
   "file_map": {
-    "src/main.rs": "Main App loop, Interaction State Machine, Path Consolidation logic.",
-    "src/object.rs": "Geometric entities, VContour, EntityRef, SelectedItem.",
-    "src/geometry.rs": "Mathematical engine (Point2D, Bisector math).",
-    "src/canvas_coords.rs": "Screen-to-SVG coordinate transformation.",
-    "src/types.rs": "System-enums."
+    "src/main.rs": "Main App, State-Machine, JS Transformation Logic.",
+    "src/object.rs": "Geometric entities including VMirror and VPointAlongLine.",
+    "src/geometry.rs": "Refactored mirror_over_line math engine."
   },
   "current_features": [
-    "High-precision Point creation with Coordinate Mapping",
-    "SVG Grid background with dynamic resizing support",
-    "Interactive Cubic Bezier Splines (4-point selection)",
-    "Angle Bisector Tool with automatic angle calculation",
-    "Path Consolidation (🧩 Path) - Grouping entities into contours",
-    "Global Selection System (Points, Lines, Splines, Paths) with visual feedback",
-    "Interactive Drag & Drop for Points with real-time dependency updates",
-    "CSS interaction layer (Hover effects, Selection glow, Grab cursors)",
-    "SVG Text Labels (P1, P2...) for points",
-    "Cascading Deletion Logic (Cleaning dependencies on delete)",
-    "Native Project Persistence (Save/Load via Native File Dialogs)",
-    "Robust State-Machine for interaction",
-    "Deadlock-free state management using Signal Snapshots"
+    "Absolute Precision Point placement via getScreenCTM",
+    "Linked Mirroring (Constraint-based interaction)",
+    "Point Along Line tool (Generative geometry)",
+    "Angle Bisector tool (Ported from Valentina logic)",
+    "Interactive Cubic Bezier Splines",
+    "Cascading Deletion & JSON Persistence"
   ],
-  "todo_stage_3": [
-    "Task 3.10: Dynamic Measurement Overlays (Live labels for length/angle)",
-    "Task 3.11: Closed Path Logic (Checking for geometric closure)"
+  "todo_stage_4": [
+    "Task 4.3: Implement Point of Intersection between two lines",
+    "Task 4.4: Support for Arcs with interactive angles",
+    "Task 4.5: Command Pattern implementation for AI drawing"
   ]
 }

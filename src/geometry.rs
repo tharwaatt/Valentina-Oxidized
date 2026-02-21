@@ -34,11 +34,30 @@ impl Point2D {
         }
     }
 
+    /// حساب انعكاس النقطة حول خط معرف بنقطتين (axis_p1, axis_p2)
+    pub fn mirror_over_line(&self, axis_p1: &Point2D, axis_p2: &Point2D) -> Self {
+        let dx = axis_p2.x - axis_p1.x;
+        let dy = axis_p2.y - axis_p1.y;
+        
+        let d = dx * dx + dy * dy;
+        if d.abs() < f64::EPSILON { return *self; }
+
+        let a = (dx * dx - dy * dy) / d;
+        let b = 2.0 * dx * dy / d;
+
+        let x = self.x - axis_p1.x;
+        let y = self.y - axis_p1.y;
+
+        Self {
+            x: (a * x + b * y) + axis_p1.x,
+            y: (b * x - a * y) + axis_p1.y,
+        }
+    }
+
     // تطبيق أول دالة رياضية شفناها في الـ CPP: الدوران
     pub fn rotate(&self, origin: &Point2D, degrees: f64) -> Self {
         let rad = degrees.to_radians();
-        let cos_a = rad.cos();
-        let sin_a = rad.sin();
+        let (sin_a, cos_a) = rad.sin_cos();
 
         let dx = self.x - origin.x;
         let dy = self.y - origin.y;
